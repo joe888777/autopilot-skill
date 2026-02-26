@@ -1,7 +1,10 @@
 # Autopilot — Learned Preferences
 
-## Learned Rules
-<!-- Consolidated patterns (3+ occurrences) go here -->
+## Learned Rules (high confidence — 5x+)
+<!-- Auto-applied silently -->
 
-## Observation Log
-<!-- Individual choices recorded here, consolidated into rules over time -->
+## Learned Rules (medium confidence — 3-4x)
+<!-- Auto-applied with announcement -->
+
+## Observations (low confidence — tracking)
+<!-- Individual choices, not yet auto-applied -->
