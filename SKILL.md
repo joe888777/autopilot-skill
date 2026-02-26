@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Use when the user invokes /autopilot to enable auto-accept mode for skill recommendations. Activates hands-off workflow where Claude automatically proceeds with recommended options instead of pausing for approval. Supports full/partial/off modes.
+description: Use when the user invokes /autopilot to enable auto-accept mode for skill recommendations. Activates hands-off workflow where Claude automatically proceeds with recommended options instead of pausing for approval. Supports full/partial/off modes and configurable learning sensitivity.
 ---
 
 # Autopilot
@@ -16,6 +16,11 @@ Invoke with a mode argument:
 - `/autopilot` or `/autopilot full` — auto-accept all non-destructive approval points
 - `/autopilot partial` — auto-accept design/brainstorming, but pause at execution choices
 - `/autopilot off` — disable, revert to normal approval behavior
+- `/autopilot learning high` — auto-apply preferences after 1 occurrence
+- `/autopilot learning medium` — auto-apply after 3 occurrences (default)
+- `/autopilot learning low` — auto-apply after 5 occurrences (conservative)
+
+Mode and learning can be combined: `/autopilot full` then `/autopilot learning high`.
 
 ### Mode Behavior
 
@@ -87,11 +92,17 @@ Use compact entries in `preferences.md`:
 
 ### Confidence Levels
 
-| Count | Confidence | Behavior |
-|-------|-----------|----------|
-| 1-2x | low | Track in observations, do NOT auto-apply |
-| 3-4x | medium | Auto-apply, but announce "based on your pattern" |
-| 5x+ | high | Auto-apply silently, treat as user preference |
+Thresholds depend on the learning sensitivity setting:
+
+| | learning high | learning medium (default) | learning low |
+|---|---|---|---|
+| Track only | — | 1-2x | 1-4x |
+| Auto-apply + announce | — | 3-4x | 5-6x |
+| Auto-apply silently | 1x+ | 5x+ | 7x+ |
+
+- **`learning high`** — trust after first occurrence. Every choice is immediately a learned rule.
+- **`learning medium`** — default. Build confidence gradually over 3-5 occurrences.
+- **`learning low`** — conservative. Needs 7+ occurrences to auto-apply silently.
 
 ### Decision Priority
 
