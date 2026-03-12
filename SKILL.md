@@ -147,10 +147,24 @@ Autopilot Session Log (full, learning: high)
 
 Applies in ALL modes. Never auto-accept:
 
+**Git operations**
 - `git push` / `git merge` / `git reset --hard` / force operations
+- Amending published commits
 - "Discard this work" in finishing-branch
-- Deleting branches, files, or significant code
-- Any action affecting shared/remote state
+- Deleting branches
+
+**Destructive file/system operations**
+- `rm -rf` or bulk file/directory deletion
+- Dropping database tables or destructive migrations
+- Killing processes
+- Removing or downgrading packages/dependencies
+
+**Shared/remote state**
+- Sending messages (Slack, email, GitHub comments)
+- Creating, closing, or commenting on PRs or issues
+- Modifying CI/CD pipelines
+- Modifying shared infrastructure or permissions
+- Any other action visible to others or affecting external systems
 
 ```dot
 digraph {
