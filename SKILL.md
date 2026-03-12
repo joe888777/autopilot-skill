@@ -1,28 +1,28 @@
 ---
-name: autopilot
-description: Use when the user invokes /autopilot to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/off modes, learning sensitivity, and smart recommendations.
+name: hands-free
+description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/off modes, learning sensitivity, and smart recommendations.
 ---
 
-# Autopilot
+# Hands-Free
 
 Auto-accept recommended options from any skill without pausing. Works with superpowers, custom skills, or any workflow with approval points.
 
 ## Commands
 
 ```
-/autopilot              # full mode (recommended)
-/autopilot full         # same — auto-accept all non-destructive points
-/autopilot partial      # auto-accept design only, pause at execution
-/autopilot off          # disable
-/autopilot learning <h/m/l>  # set learning sensitivity
-/autopilot recommend    # show recommended settings based on usage
-/autopilot log          # show session decisions
-/autopilot status       # show current mode + learning level
+/hands-free              # full mode (recommended)
+/hands-free full         # same — auto-accept all non-destructive points
+/hands-free partial      # auto-accept design only, pause at execution
+/hands-free off          # disable
+/hands-free learning <h/m/l>  # set learning sensitivity
+/hands-free recommend    # show recommended settings based on usage
+/hands-free log          # show session decisions
+/hands-free status       # show current mode + learning level
 ```
 
 ## Recommended Setup
 
-> `/autopilot full` + `/autopilot learning high`
+> `/hands-free full` + `/hands-free learning high`
 >
 > Best for experienced users who trust the defaults and want maximum speed. Auto-accepts everything non-destructive, learns your preferences after a single choice.
 
@@ -37,7 +37,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 | Phase transitions | auto | auto | ask |
 | Destructive actions | **ask** | **ask** | **ask** |
 
-Mode and learning can be combined: `/autopilot full` then `/autopilot learning high`. **Learning thresholds govern when preferences are recorded and applied; mode governs what gets auto-accepted when no preference exists.** They are independent axes.
+Mode and learning can be combined: `/hands-free full` then `/hands-free learning high`. **Learning thresholds govern when preferences are recorded and applied; mode governs what gets auto-accepted when no preference exists.** They are independent axes.
 
 ## Core Rule
 
@@ -76,11 +76,11 @@ The `markdown` field is only visible when the option is focused — it surfaces 
 
 ## Learning
 
-Preferences stored in `~/.claude/skills/autopilot/preferences.md`. Records choices whether autopilot is on or off.
+Preferences stored in `~/.claude/skills/hands-free/preferences.md`. Records choices whether hands-free is on or off.
 
 ### When to Record
 
-Record a preference whenever the user **manually chooses** an option — whether autopilot is on or off:
+Record a preference whenever the user **manually chooses** an option — whether hands-free is on or off:
 
 - User picks a non-recommended approach → record it
 - User consistently picks the same option → record it
@@ -112,12 +112,12 @@ Record a preference whenever the user **manually chooses** an option — whether
 - 2026-02-26: brainstorming → chose simplest over recommended (1x)
 ```
 
-## `/autopilot recommend`
+## `/hands-free recommend`
 
 When invoked, analyze `preferences.md` and current usage to suggest optimal settings:
 
 ```
-Autopilot Recommendations:
+Hands-Free Recommendations:
   Mode: full (you rarely override auto-accepted decisions)
   Learning: high (you're consistent — 90% of choices match first occurrence)
   Suggestion: Consider adding git push to feature branches as auto-accept
@@ -132,10 +132,10 @@ Autopilot Recommendations:
 
 ## Session Log
 
-Tracked in memory. View with `/autopilot log`:
+Tracked in memory. View with `/hands-free log`:
 
 ```
-Autopilot Session Log (full, learning: high)
+Hands-Free Session Log (full, learning: high)
   [brainstorming] approach 2 (recommended)
   [brainstorming] design approved (3 sections)
   [writing-plans] subagent-driven (your preference)
