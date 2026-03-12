@@ -1,4 +1,4 @@
-# Autopilot — Learned Preferences
+# Hands-Free — Learned Preferences
 
 ## Learned Rules (high confidence — 5x+)
 <!-- Auto-applied silently -->

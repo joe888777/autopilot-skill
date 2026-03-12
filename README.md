@@ -1,4 +1,4 @@
-# Autopilot Skill
+# Hands-Free Skill
 
 A Claude Code skill that auto-accepts recommended options from any skill workflow, giving you a hands-off experience. Works with [superpowers](https://github.com/anthropics/claude-code-plugins) and any custom skill that presents choices.
 
@@ -14,24 +14,24 @@ A Claude Code skill that auto-accepts recommended options from any skill workflo
 Clone and symlink (recommended — stays in sync with updates):
 
 ```bash
-git clone git@github.com:joe888777/autopilot-skill.git ~/autopilot-skill
-ln -s ~/autopilot-skill ~/.claude/skills/autopilot
+git clone git@github.com:joe888777/autopilot-skill.git ~/hands-free-skill
+ln -s ~/hands-free-skill ~/.claude/skills/hands-free
 ```
 
 Or copy:
 
 ```bash
 git clone git@github.com:joe888777/autopilot-skill.git
-cp -r autopilot-skill ~/.claude/skills/autopilot
+cp -r autopilot-skill ~/.claude/skills/hands-free
 ```
 
 ## Usage
 
 ```
-/autopilot          # Full auto-accept (default)
-/autopilot full     # Same as above
-/autopilot partial  # Auto-accept design, pause at execution
-/autopilot off      # Back to normal
+/hands-free          # Full auto-accept (default)
+/hands-free full     # Same as above
+/hands-free partial  # Auto-accept design, pause at execution
+/hands-free off      # Back to normal
 ```
 
 ### Modes
@@ -46,7 +46,7 @@ cp -r autopilot-skill ~/.claude/skills/autopilot
 
 ### Example
 
-Without autopilot:
+Without hands-free:
 ```
 Claude: "I see 3 approaches. Which do you prefer?"
 You: "2"
@@ -56,7 +56,7 @@ Claude: "Subagent-driven or parallel session?"
 You: "subagent"
 ```
 
-With `/autopilot`:
+With `/hands-free`:
 ```
 Claude: "Going with approach 2 (recommended) — best balance of simplicity and flexibility."
 Claude: "Design approved. Moving to implementation plan."
@@ -65,7 +65,7 @@ Claude: "Going with subagent-driven (recommended for this session)."
 
 ## How learning works
 
-Autopilot records your choices in `preferences.md` whether it's on or off.
+Hands-free records your choices in `preferences.md` whether it's on or off.
 
 | Occurrences | Confidence | Behavior |
 |---|---|---|
@@ -73,11 +73,11 @@ Autopilot records your choices in `preferences.md` whether it's on or off.
 | 3-4x | medium | Auto-applied with announcement |
 | 5x+ | high | Auto-applied silently |
 
-Over time, autopilot picks **what you would pick**, not just the default recommendation.
+Over time, hands-free picks **what you would pick**, not just the default recommendation.
 
 ## Session log
 
-Ask "what did autopilot decide?" anytime to see a summary of all auto-accepted decisions in the current session.
+Run `/hands-free log` anytime to see a summary of all auto-accepted decisions in the current session.
 
 ## Requirements
 
@@ -86,7 +86,7 @@ Ask "what did autopilot decide?" anytime to see a summary of all auto-accepted d
 
 ## Contributing
 
-PRs welcome. If you find an approval point that autopilot doesn't handle well, open an issue.
+PRs welcome. If you find an approval point that hands-free doesn't handle well, open an issue.
 
 ## License
 
