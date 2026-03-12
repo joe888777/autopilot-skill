@@ -5,8 +5,10 @@ A Claude Code skill that auto-accepts recommended options from any skill workflo
 ## What it does
 
 - **Auto-accepts** recommended options at approval points (brainstorming, design, execution, checkpoints)
-- **Pauses** for destructive/irreversible actions (git push, merge, discard, force operations)
+- **Auto-commits** changes at natural milestones with clean git history
+- **Pauses** for destructive/irreversible actions (git push, merge, discard, force operations, rm -rf, CI/CD changes, etc.)
 - **Learns** your preferences over time — tracks choices, builds confidence, adapts to you
+- **Ralph-loop integration** — works with ralph-loop + superpowers for fully autonomous iterative development
 - **Three modes** — `full`, `partial`, and `off` for different levels of autonomy
 
 ## Install
@@ -61,6 +63,88 @@ With `/hands-free`:
 Claude: "Going with approach 2 (recommended) — best balance of simplicity and flexibility."
 Claude: "Design approved. Moving to implementation plan."
 Claude: "Going with subagent-driven (recommended for this session)."
+```
+
+## Ralph Loop + Superpowers Example
+
+Hands-free combines with [ralph-loop](https://ghuntley.com/ralph/) and superpowers for fully autonomous iterative development. Type 4 lines, walk away, come back to working code.
+
+### Setup
+
+```
+/hands-free full
+/hands-free auto-commit on
+/hands-free learning high
+/ralph-loop "Build a REST API for a todo app with Express.js. Include CRUD endpoints, input validation, error handling, and tests. Output <promise>DONE</promise> when all tests pass." --completion-promise "DONE" --max-iterations 10
+```
+
+### What happens
+
+**Iteration 1 — Design & scaffold**
+```
+[hands-free] Loop detected — iteration #1, no prior work → full superpowers flow
+[hands-free] brainstorming → Going with approach 2 (recommended) — Express + Zod + Vitest
+[hands-free] design approved (3 sections)
+[hands-free] writing-plans → subagent-driven (recommended)
+[auto-commit] [ralph #1] feat: scaffold Express app with CRUD routes (4 files)
+[auto-commit] [ralph #1] feat: add Zod validation and error handler (3 files)
+[auto-commit] [ralph #1] test: add CRUD endpoint tests (2 files)
+
+Running tests... 3 passed, 2 failed → no completion promise, exiting iteration
+```
+
+**Iteration 2 — Fix failures**
+```
+[hands-free] Loop detected — iteration #2, tests failing → systematic-debugging
+[auto-commit] [ralph #2] fix: handle null request body and missing todo 404 (2 files)
+
+Running tests... 5 passed, 0 failed → edge cases not covered, no promise yet
+```
+
+**Iteration 3 — Add edge cases**
+```
+[hands-free] Loop detected — iteration #3, tests passing, work incomplete → continue plan
+[auto-commit] [ralph #3] test: add edge case validation tests (1 file)
+
+Running tests... 9 passed, 1 failed
+```
+
+**Iteration 4 — Final fix**
+```
+[hands-free] Loop detected — iteration #4, tests failing → systematic-debugging
+[auto-commit] [ralph #4] fix: add duplicate title check in create endpoint (1 file)
+
+Running tests... 10 passed, 0 failed
+<promise>DONE</promise>
+```
+
+### Result
+
+```
+/hands-free log
+
+Hands-Free Session Log (full, learning: high, ralph-loop: 4 iterations)
+  [brainstorming] approach 2 — Express + Zod + Vitest
+  [brainstorming] design approved (3 sections)
+  [writing-plans] subagent-driven (recommended)
+  [executing-plans] batches 1-3 auto-continued
+  [auto-commit] [ralph #1] scaffold, validation, tests (3 commits)
+  [systematic-debugging] 2 failures → fixed
+  [auto-commit] [ralph #2] null body + 404 fix
+  [auto-commit] [ralph #3] edge case tests
+  [systematic-debugging] 1 failure → fixed
+  [auto-commit] [ralph #4] duplicate check
+  COMPLETED — 4 iterations, 7 commits, 10 tests passing
+```
+
+Git log:
+```
+* [ralph #4] fix: add duplicate title check in create endpoint
+* [ralph #3] test: add edge case validation tests
+* [ralph #2] fix: handle null request body and missing todo 404
+* [ralph #1] test: add CRUD endpoint tests
+* [ralph #1] feat: add Zod validation and error handler
+* [ralph #1] feat: scaffold Express app with CRUD routes
 ```
 
 ## How learning works
