@@ -37,6 +37,8 @@ Auto-accept recommended options from any skill without pausing. Works with super
 | Phase transitions | auto | auto | ask |
 | Destructive actions | **ask** | **ask** | **ask** |
 
+Mode and learning can be combined: `/autopilot full` then `/autopilot learning high`. **Learning thresholds govern when preferences are recorded and applied; mode governs what gets auto-accepted when no preference exists.** They are independent axes.
+
 ## Core Rule
 
 When active, MUST auto-proceed with the recommended option. Do NOT pause, present options, or wait. **Announce, don't ask:** "Going with approach 2 (recommended) — [reason]" and continue.
@@ -47,9 +49,43 @@ Applies to **any skill** — not just superpowers:
 - Design/plan review → approve
 - Checkpoint pause → continue
 
+### When You Must Pause and Ask
+
+In partial mode or at hard stops, when presenting options to the user via `AskUserQuestion`, mark the recommended option with a `markdown` preview panel — do NOT add "(Recommended)" to the label:
+
+```
+{
+  "label": "Subagent-Driven",
+  "description": "Dispatch fresh subagent per task with two-stage review",
+  "markdown": "## Recommended\n\nBest for staying in this session with fast iteration.\n\n**Pros:** No context switch, review checkpoints automatic\n**Con:** More subagent invocations"
+}
+```
+
+The `markdown` field is only visible when the option is focused — it surfaces the rationale without cluttering the label. Use it on the recommended option only.
+
+### Superpowers-Specific Approval Points
+
+| Skill | Approval Point | Auto Action |
+|-------|---------------|-------------|
+| brainstorming | 2-3 approach options | Pick recommended approach |
+| brainstorming | Design section approval | Approve, continue to next |
+| brainstorming | Final design approval | Approve, proceed to writing-plans |
+| writing-plans | Execution method choice | Pick recommended method (full only) |
+| executing-plans | Batch checkpoint | Continue to next batch (full only) |
+| systematic-debugging | Phase transitions | Proceed through all phases |
+
 ## Learning
 
 Preferences stored in `~/.claude/skills/autopilot/preferences.md`. Records choices whether autopilot is on or off.
+
+### When to Record
+
+Record a preference whenever the user **manually chooses** an option — whether autopilot is on or off:
+
+- User picks a non-recommended approach → record it
+- User consistently picks the same option → record it
+- User overrides an auto-accept decision → record the override
+- User approves or rejects a destructive action → record it
 
 ### Sensitivity
 
