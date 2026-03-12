@@ -14,6 +14,8 @@ Auto-accept recommended options from any skill without pausing. Works with super
 /hands-free full         # same — auto-accept all non-destructive points
 /hands-free partial      # auto-accept design only, pause at execution
 /hands-free off          # disable
+/hands-free auto-commit on    # auto-commit changes at natural milestones
+/hands-free auto-commit off   # disable auto-commit (default)
 /hands-free learning <h/m/l>  # set learning sensitivity
 /hands-free recommend    # show recommended settings based on usage
 /hands-free log          # show session decisions
@@ -36,6 +38,8 @@ Auto-accept recommended options from any skill without pausing. Works with super
 | Batch checkpoints | auto | **ask** | ask |
 | Phase transitions | auto | auto | ask |
 | Destructive actions | **ask** | **ask** | **ask** |
+| Git commit (auto-commit on) | auto | auto | ask |
+| Git push | **ask** | **ask** | **ask** |
 
 Mode and learning can be combined: `/hands-free full` then `/hands-free learning high`. **Learning thresholds govern when preferences are recorded and applied; mode governs what gets auto-accepted when no preference exists.** They are independent axes.
 
@@ -73,6 +77,39 @@ The `markdown` field is only visible when the option is focused — it surfaces 
 | writing-plans | Execution method choice | Pick recommended method (full only) |
 | executing-plans | Batch checkpoint | Continue to next batch (full only) |
 | systematic-debugging | Phase transitions | Proceed through all phases |
+
+## Auto-Commit
+
+When enabled (`/hands-free auto-commit on`), automatically commit changes at natural milestones without asking. Off by default.
+
+### When to Auto-Commit
+
+- After completing a discrete task (feature, bugfix, refactor)
+- After a plan step or batch is finished
+- After tests pass for a completed change
+- After meaningful file edits that form a logical unit
+
+### How It Works
+
+1. Stage only the relevant changed files (`git add <specific files>`) — never `git add -A` or `git add .`
+2. Write a concise commit message following the repo's existing commit style
+3. Announce: "Auto-committed: `<short message>`"
+4. Log it in the session log
+
+### Safety Rules
+
+- **Never commit** `.env`, credentials, secrets, or large binaries
+- **Never amend** existing commits — always create new ones
+- **Never skip** pre-commit hooks (`--no-verify` is forbidden)
+- If a pre-commit hook fails, announce the failure and pause for user input
+- `git push` is still a **HARD STOP** — auto-commit is local only
+
+### Session Log Entry
+
+```
+[auto-commit] feat: add validation to user input form (3 files)
+[auto-commit] fix: handle null response in API client (1 file)
+```
 
 ## Learning
 
