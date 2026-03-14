@@ -37,6 +37,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 | Execution method | auto | **ask** | ask |
 | Batch checkpoints | auto | **ask** | ask |
 | Phase transitions | auto | auto | ask |
+| Grep tool calls | auto | auto | ask |
 | Destructive actions | **ask** | **ask** | **ask** |
 | Git commit (auto-commit on) | auto | auto | ask |
 | Git push | **ask** | **ask** | **ask** |
