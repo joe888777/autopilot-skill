@@ -14,6 +14,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 /hands-free full         # same — auto-accept all non-destructive points
 /hands-free partial      # auto-accept design only, pause at execution
 /hands-free off          # disable
+/hands-free crazy-workspace [dir]  # approve everything scoped to [dir], except rm -rf * and rm -rf .git
 /hands-free auto-commit on    # auto-commit changes at natural milestones
 /hands-free auto-commit off   # disable auto-commit (default)
 /hands-free learning <h/m/l>  # set learning sensitivity
@@ -30,17 +31,19 @@ Auto-accept recommended options from any skill without pausing. Works with super
 
 ## Mode Behavior
 
-| Approval Type | full | partial | off |
-|---|---|---|---|
-| Brainstorming approaches | auto | auto | ask |
-| Design approval | auto | auto | ask |
-| Execution method | auto | **ask** | ask |
-| Batch checkpoints | auto | **ask** | ask |
-| Phase transitions | auto | auto | ask |
-| Grep tool calls | auto | auto | ask |
-| Destructive actions | **ask** | **ask** | **ask** |
-| Git commit (auto-commit on) | auto | auto | ask |
-| Git push | **ask** | **ask** | **ask** |
+| Approval Type | full | partial | off | crazy-workspace |
+|---|---|---|---|---|
+| Brainstorming approaches | auto | auto | ask | auto |
+| Design approval | auto | auto | ask | auto |
+| Execution method | auto | **ask** | ask | auto |
+| Batch checkpoints | auto | **ask** | ask | auto |
+| Phase transitions | auto | auto | ask | auto |
+| Grep tool calls | auto | auto | ask | auto |
+| Destructive actions | **ask** | **ask** | **ask** | auto (in target dir) |
+| Git commit (auto-commit on) | auto | auto | ask | auto |
+| Git push | **ask** | **ask** | **ask** | auto |
+| `rm -rf *` | **ask** | **ask** | **ask** | **HARD STOP** |
+| `rm -rf .git` | **ask** | **ask** | **ask** | **HARD STOP** |
 
 Mode and learning can be combined: `/hands-free full` then `/hands-free learning high`. **Learning thresholds govern when preferences are recorded and applied; mode governs what gets auto-accepted when no preference exists.** They are independent axes.
 
@@ -247,9 +250,53 @@ Each iteration flows automatically:
 - Does NOT override ralph-loop's `--max-iterations` limit
 - Does NOT re-brainstorm if a design already exists from a prior iteration
 
+## Crazy-Workspace Mode
+
+`/hands-free crazy-workspace [dir]` unlocks a maximum-autonomy mode scoped to a specific directory. Designed for sandboxed environments, throwaway repos, or any workspace where speed matters more than caution.
+
+### Activation
+
+```
+/hands-free crazy-workspace ~/project/sandbox
+```
+
+If `[dir]` is omitted, defaults to the current working directory.
+
+### Behavior
+
+- **Auto-approve everything** — git push, merges, resets, force ops, destructive edits, file deletions, package changes, CI changes — all auto-accepted **as long as the operation targets files within `[dir]`**
+- **Scope check** — before auto-approving any destructive action, verify the target path is inside `[dir]`. If it escapes the target dir, treat as a HARD STOP and ask.
+- **Two absolute hard stops** (no exceptions, no override):
+  - `rm -rf *` — wipes everything indiscriminately
+  - `rm -rf .git` — destroys version history
+
+### Announce on Activation
+
+When crazy-workspace is activated, print a clear warning:
+
+```
+Crazy-Workspace ACTIVE — target: ~/project/sandbox
+Auto-approving all operations within this directory.
+Hard stops: rm -rf * | rm -rf .git
+```
+
+### Decision Flow
+
+```dot
+digraph {
+    "Action requested" -> "rm -rf * or rm -rf .git?";
+    "rm -rf * or rm -rf .git?" -> "HARD STOP" [label="yes"];
+    "rm -rf * or rm -rf .git?" -> "Within target dir?" [label="no"];
+    "Within target dir?" -> "Auto-approve" [label="yes"];
+    "Within target dir?" -> "HARD STOP" [label="no — escapes scope"];
+}
+```
+
+---
+
 ## HARD STOP — Always Pause
 
-Applies in ALL modes. Never auto-accept:
+Applies in ALL modes (including crazy-workspace). Never auto-accept:
 
 **Git operations**
 - `git push` / `git merge` / `git reset --hard` / force operations
@@ -257,13 +304,18 @@ Applies in ALL modes. Never auto-accept:
 - "Discard this work" in finishing-branch
 - Deleting branches
 
-**Destructive file/system operations**
+**Destructive file/system operations** *(full/partial/off only — crazy-workspace overrides within target dir)*
 - `rm -rf` or bulk file/directory deletion
 - Dropping database tables or destructive migrations
 - Killing processes
 - Removing or downgrading packages/dependencies
 
-**Shared/remote state**
+**Always hard stop in crazy-workspace too**
+- `rm -rf *` — indiscriminate wipe
+- `rm -rf .git` — destroys version history
+- Any operation targeting paths **outside** the crazy-workspace target dir
+
+**Shared/remote state** *(full/partial/off only — crazy-workspace overrides within target dir)*
 - Sending messages (Slack, email, GitHub comments)
 - Creating, closing, or commenting on PRs or issues
 - Modifying CI/CD pipelines
