@@ -176,6 +176,20 @@ Keep announcements to one line maximum unless it's a review checkpoint (which us
 
 For repeated identical decisions, log them silently to the session log without printing to the user. This prevents the chat from being flooded with repetitive announcements across many iterations.
 
+**Throttling precision — what counts as "identical":** Two decisions are considered identical if:
+1. The same skill presented the decision (e.g., both from `brainstorming`)
+2. The same option was chosen (e.g., both times "approach 2")
+3. The reason was the same (both "recommended" or both "your preference")
+
+A decision is **NOT** throttled if:
+- A different option was chosen than last time (even in the same skill)
+- The decision source changed (e.g., went from "recommended" to "your preference" after learning)
+- A hard stop was triggered (always announce — security-critical)
+- A review checkpoint fired (always announce — user interaction required)
+- Auto-commit happened (always announce — user needs to know changes were committed)
+
+**Announcement cadence in long loops:** Even for throttled decisions, output a brief summary every 10 iterations: `[hands-free] Iterations 11-20: same auto-accept pattern as iterations 1-10 (approach 2, subagent-driven, batches 1-4). N auto-commits.`
+
 ### Conflict Resolution
 
 When two active skills both present approval points simultaneously, apply this priority order:
@@ -308,6 +322,24 @@ The `markdown` field is only visible when the option is focused — it surfaces 
 | test-driven-development | Implementation approach choice | Pick recommended (full only) |
 | verification-before-completion | "Run verification commands?" | Auto-verify in full; route to debugging if failures |
 
+### Dispatching-Parallel-Agents Behavior
+
+When the `dispatching-parallel-agents` skill is active, hands-free handles its approval points as follows:
+
+**Agent count approval** — the skill presents 2-4 options for how many parallel agents to dispatch and which tasks to assign each one. In `full` mode: auto-accept the recommended count. In `partial` mode: pause and present options (agent dispatch is an "execution method" choice — partial mode pauses at execution). In `off` mode: always pause.
+
+**Task assignment review** — if the skill presents a task-to-agent assignment for review before dispatch:
+- `full` mode: auto-approve the recommended assignment
+- `partial` mode: pause for review (same as execution method)
+
+**Agent completion review** — when parallel agents complete and results are summarized for review:
+- `full` mode: auto-accept the summary and proceed to next phase
+- `partial` mode: pause if the next step is execution (another dispatch); auto-accept if returning to design
+
+**Auto-commit with parallel agents:** When agents complete and auto-commit is on, each agent's changes are committed separately (one commit per agent batch). Each commit is tagged `[parallel-agent #N]` where N is the agent number. If two agents produce changes to the same file, the second commit will show a merge of changes.
+
+**Sequential dependency:** Even in full mode, do NOT auto-dispatch a second batch of parallel agents before the first batch is fully complete. The skill itself will sequence them; hands-free respects that sequencing without forcing parallelism where the skill doesn't intend it.
+
 ## Read-Only Tool Auto-Pass
 
 In `full`, `partial`, and `crazy-workspace` modes, the following Claude Code tools are always auto-approved since they are read-only and cannot modify state:
@@ -322,6 +354,17 @@ These tools cannot write to disk, run code, or make side effects, so they are sa
 **Note on `off` mode and tool permissions:** Hands-free governs *skill-level approval points* — decision moments where a skill asks the user to choose a path. It does not intercept Claude Code's tool execution system. Claude Code's own permission settings (auto-approve mode, sandbox mode) govern whether individual tool calls need user approval at the system level. Hands-free `off` means: "at every skill decision point, pause and ask" — not "block every tool call".
 
 **MCP tool calls:** When Claude Code has MCP (Model Context Protocol) servers active, their tools are treated by hands-free as follows: MCP read operations (fetching data, listing resources) → auto-pass in full mode (equivalent to read-only tools). MCP write operations (creating pages, posting messages, modifying records) → treat as shared/remote state → ask in all modes. If an MCP tool's purpose cannot be determined from its name, ask before proceeding.
+
+**MCP tool naming heuristics (read vs write):** Classify by the verb prefix in the tool name:
+- **Read operations → auto-pass in full:** tools whose name starts with or contains `get`, `fetch`, `list`, `read`, `search`, `query`, `view`, `show`, `describe`, `inspect`, `check`, `status`, `info`, `peek`, `scan`, `find`, `browse`, `navigate`
+  - Examples: `notion-fetch`, `notion-search`, `notion-get-users`, `github-list-issues`, `browser-snapshot`, `browser-take-screenshot`
+- **Write operations → ask in all modes:** tools whose name starts with or contains `create`, `update`, `write`, `delete`, `remove`, `post`, `send`, `set`, `add`, `edit`, `modify`, `insert`, `push`, `deploy`, `publish`, `merge`, `close`, `reopen`, `comment`, `upload`, `submit`
+  - Examples: `notion-create-pages`, `notion-update-page`, `github-create-pr`, `slack-send-message`, `browser-click`, `browser-fill-form`, `browser-type`
+- **Ambiguous names:** If the verb doesn't appear in the read or write list, or if the tool name is a noun without a verb (e.g., `playwright`, `notion-move-pages`, `browser-navigate-back`):
+  - Navigation/state-change browser tools → classify as write (they change browser state, may trigger network requests)
+  - Resource-listing tools (even without "list" in the name) → classify based on context from tool description if available
+  - Unknown → ask before the first use; record the user's choice as a preference if they approve
+- **crazy-workspace override:** MCP write ops that target purely local resources (e.g., a local browser tab, a local filesystem MCP) may be auto-approved in crazy-workspace. MCP ops that write to external services (Notion, Slack, GitHub) remain ask even in crazy-workspace.
 
 ## Write-Capable Tool Rules
 
@@ -1425,6 +1468,27 @@ Hands-Free Session Log (full, learning: high)
 Events logged: `[brainstorming]`, `[writing-plans]`, `[executing-plans]`, `[verification]`, `[finishing-branch]`, `[auto-commit]`, `[review-checkpoint]`, `[systematic-debugging]`, `[hard-stop]`, `[user-override]`.
 
 **Log size:** For long sessions (ralph-loop with many iterations), the log may have hundreds of entries. When `/hands-free log` is called with > 50 events, show: the first 5 events (session start context), then `[... N events omitted ...]`, then the last 20 events (most recent). Include a total count: `(N total events this session)`. Pass `--full` to see the complete log.
+
+**`/hands-free log --full` output format:**
+```
+Hands-Free Session Log — FULL (full, learning: high, auto-commit: on)
+Total events: 87
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[session-start] mode: full, learning: high, auto-commit: on
+[brainstorming] approach 2 (recommended) — "subagent-driven"
+[brainstorming] design approved — 3 sections
+[review-checkpoint] brainstorming → writing-plans — skipped (off)
+[writing-plans] subagent-driven (your preference — 3x, medium)
+[review-checkpoint] writing-plans → executing-plans — HARD STOP (mandatory)
+  user chose: [C] Continue
+[executing-plans] batch 1/4 auto-continued
+[auto-commit] feat: add user model (3 files) [ralph #1]
+[executing-plans] batch 2/4 auto-continued
+[auto-commit] feat: add API routes (5 files) [ralph #1]
+... (83 more events — use /hands-free log to see abbreviated view)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+Each event includes: event type, skill context, decision made, and source (recommended / preference / mode-default / user-override).
 
 ## `/hands-free explain`
 
