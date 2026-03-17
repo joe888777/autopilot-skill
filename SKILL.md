@@ -304,7 +304,10 @@ In `full`, `partial`, and `crazy-workspace` modes, auto-approve Bash/shell tool 
 
 - `pyenv` — any pyenv subcommand (`pyenv install`, `pyenv local`, `pyenv global`, etc.)
 - `nvm` — Node Version Manager (`nvm use`, `nvm install`, `nvm alias`, etc.)
-- `rustup` — Rust toolchain manager (`rustup update`, `rustup target add`, `rustup component add`, etc.)
+- `rustup` — Rust toolchain manager (`rustup update`, `rustup target add`, `rustup component add`, `rustup toolchain install`, etc.)
+- `source .venv/bin/activate` / `. .venv/bin/activate` → auto-pass (activates Python virtual environment — sets env vars in current shell, cwd-scoped)
+- `source ./env.sh` / `. ./env.sh` (cwd-scoped local shell script) → auto-pass in full if the file is within cwd; the content scan rule also applies — if the script contains hard stop patterns, the file cannot be auto-sourced
+- Note: `source <(curl ...)` and `source <(wget ...)` are HARD STOP (remote code execution, already covered)
 - `git init` — initializing a repo
 - `git add` — staging files (not destructive)
 - `git checkout -b <branch>` — creating a new local branch (non-destructive)
@@ -446,6 +449,10 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `flask run` / `python manage.py runserver` → auto-pass (local dev server, localhost only by default)
 - `pm2 list` / `pm2 show myapp` → auto-pass (read-only process manager inspection)
 - `pm2 start ./app.js` / `pm2 stop myapp` / `pm2 restart myapp` → ask (modifies system process state)
+- `jupyter notebook` / `jupyter lab` → auto-pass (local dev server on localhost; no remote state); ask if `--ip 0.0.0.0` is passed (exposes to network)
+- `python -m http.server 8080` → auto-pass (local HTTP server on localhost; serves current directory)
+- `node --inspect ./server.js` → auto-pass (Node.js debug mode, localhost debugger port only)
+- `npx create-react-app ./my-app` / `npx create-next-app@latest ./my-app` → auto-pass (cwd-scoped project scaffolding)
 - `act` (run GitHub Actions locally via Docker) → auto-pass (runs CI locally, no remote state changes)
 - `circleci local execute` → auto-pass (runs CircleCI locally, no remote state changes)
 - `apt-get install`, `dnf install`, `yum install` → ask (system package manager, writes to system paths)
@@ -683,6 +690,13 @@ digraph {
 | `cargo miri test` | auto-pass (cwd-scoped, UB detection) |
 | `cargo watch -x test` | auto-pass (cwd-scoped watch mode) |
 | `cargo watch -x run` | auto-pass (cwd-scoped watch mode) |
+| `cargo +nightly build` | auto-pass (cwd-scoped, uses nightly toolchain) |
+| `cargo +nightly test` | auto-pass (cwd-scoped) |
+| `rustup target add wasm32-unknown-unknown` | auto-pass (adds a build target) |
+| `rustup component add rustfmt clippy` | auto-pass (adds toolchain components) |
+| `rustup toolchain install nightly` | auto-pass (installs a Rust toolchain) |
+| `source .venv/bin/activate` | auto-pass (activates Python venv) |
+| `source ./env.sh` | auto-pass (sources cwd-scoped script, subject to content scan) |
 | `cargo install --path .` | ask (writes to ~/.cargo/bin — outside cwd) |
 | `cargo audit` | auto-pass (read-only security audit) |
 | `npm audit` | auto-pass (read-only security audit) |
@@ -756,6 +770,11 @@ digraph {
 | `uvicorn main:app --host 0.0.0.0` | ask (binds to all interfaces) |
 | `flask run` | auto-pass (localhost dev server) |
 | `python manage.py runserver` | auto-pass (Django localhost dev server) |
+| `jupyter notebook` | auto-pass (local Jupyter server) |
+| `jupyter lab` | auto-pass (local JupyterLab server) |
+| `python -m http.server 8080` | auto-pass (local HTTP server) |
+| `node --inspect ./server.js` | auto-pass (Node.js debug, localhost debugger) |
+| `npx create-next-app@latest ./my-app` | auto-pass (cwd-scoped scaffolding) |
 | `pm2 list` | auto-pass (read-only) |
 | `pm2 start ./app.js` | ask (modifies system process state) |
 | `act` | auto-pass (local GitHub Actions runner) |
