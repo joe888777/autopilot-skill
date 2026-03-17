@@ -2,6 +2,41 @@
 
 ## [2.0.0] — 2026-03-17
 
+### Added (iteration 3 — same day)
+
+**Security**
+- Language-level RCE hard stops (universal): `python -c "exec(urllib...)"`, `node -e "eval(...)"`, `ruby -e "eval(URI.open...)"`, `source <(curl ...)` blocked in ALL modes
+- Updated Quick Reference and README security table to include all RCE variants and language-specific patterns
+
+**Auto-commit**
+- Merge conflict detection: skip auto-commit and announce when unresolved conflicts exist in working tree
+- Added `git commit --amend` and `git commit -a` / `git add -A` to the forbidden operations list
+- Updated edge cases table with merge conflict scenario
+
+**Learning / Preferences**
+- `/hands-free learning` with no argument: show current learning level and threshold summary
+- Sensitivity vs. confidence clarification: explains that confidence tier = permanence in preferences.md; sensitivity = how aggressively current session applies it
+- Preference pruning guidance: when and how to remove stale observations from preferences.md
+
+**Shell examples**
+- TypeScript: `npx eslint src/`, `npx vitest run`, `bun run test`, `bun run build`
+- Python: `python -m mypy src/`, `python -m ruff check .`, `uv run pytest`
+- Rust: `cargo fmt`, `cargo fmt --check`, `cargo sqlx prepare`
+- New HARD STOP examples: `source <(curl ...)`, `python -c "exec(urllib...)"`, `node -e "eval(...)"`
+
+**Superpowers integration**
+- Added `dispatching-parallel-agents` and `requesting-code-review` to Superpowers-Specific Approval Points table
+
+**Ralph Loop**
+- Loop stall prevention: detect 3 consecutive iterations with no new progress; announce stall warning and pause for user input
+- Clarified: does NOT output completion promise unless condition is genuinely true
+
+**UX**
+- Mode table note: optional review checkpoints become HARD STOP when `review-checkpoints on` is set
+- `off` mode clarification: governs skill-level approval points, not Claude Code tool execution system
+- Improved dry-run output: shows mode-specific state for optional checkpoints and rm-rf patterns
+- Write-Capable Tool Rules section: documents Edit/Write/NotebookEdit auto-pass rules and secrets scan behavior
+
 ### Added
 
 **Security**

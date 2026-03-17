@@ -183,6 +183,8 @@ The `markdown` field is only visible when the option is focused — it surfaces 
 | executing-plans → verification | Review checkpoint (optional) | HARD STOP if `review-checkpoints on` |
 | verification-before-completion → finishing-branch | Review checkpoint (mandatory) | **Always HARD STOP** — about to push/merge |
 | systematic-debugging | Phase transitions | Proceed through all phases |
+| dispatching-parallel-agents | Agent count / task assignment approval | Pick recommended count (full only) |
+| requesting-code-review | Review scope selection | Pick recommended scope (full only) |
 
 ## Read-Only Tool Auto-Pass
 
@@ -194,6 +196,8 @@ In `full`, `partial`, and `crazy-workspace` modes, the following Claude Code too
 - **WebFetch** / **WebSearch** — fetch or search web content (read-only)
 
 These tools cannot write to disk, run code, or make side effects, so they are safe to auto-pass in all active modes. In `off` mode, they require user approval like any other tool.
+
+**Note on `off` mode and tool permissions:** Hands-free governs *skill-level approval points* — decision moments where a skill asks the user to choose a path. It does not intercept Claude Code's tool execution system. Claude Code's own permission settings (auto-approve mode, sandbox mode) govern whether individual tool calls need user approval at the system level. Hands-free `off` means: "at every skill decision point, pause and ask" — not "block every tool call".
 
 ## Write-Capable Tool Rules
 
@@ -250,11 +254,21 @@ digraph {
 | `cd src/subdir` | auto-pass (within workspace) |
 | `npm install` | auto-pass (cwd-scoped) |
 | `python -m pytest tests/` | auto-pass (cwd-scoped) |
+| `python -m mypy src/` | auto-pass (cwd-scoped, type check) |
+| `python -m ruff check .` | auto-pass (cwd-scoped, lint) |
+| `uv run pytest` | auto-pass (cwd-scoped) |
 | `cargo build --release` | auto-pass (cwd-scoped) |
 | `cargo test` | auto-pass (cwd-scoped) |
 | `cargo clippy` | auto-pass (cwd-scoped) |
+| `cargo fmt` | auto-pass (cwd-scoped, format) |
+| `cargo fmt --check` | auto-pass (cwd-scoped, format check) |
+| `cargo sqlx prepare` | auto-pass (cwd-scoped) |
 | `make build` | auto-pass (cwd-scoped) |
-| `npx tsc --noEmit` | auto-pass (cwd-scoped) |
+| `npx tsc --noEmit` | auto-pass (cwd-scoped, type check) |
+| `npx eslint src/` | auto-pass (cwd-scoped, lint) |
+| `npx vitest run` | auto-pass (cwd-scoped, test) |
+| `bun run test` | auto-pass (cwd-scoped) |
+| `bun run build` | auto-pass (cwd-scoped) |
 | `psql -f ./migration.sql` | auto-pass (cwd-scoped, local DB file) |
 | `sqlite3 ./db.sqlite < ./schema.sql` | auto-pass (cwd-scoped, local DB file) |
 | `grep -r "pattern" ./src` | auto-pass (cwd-scoped, read-only) |
@@ -751,6 +765,23 @@ The "1 remaining" pause is the only mandatory pause the warning system introduce
 - Does NOT override ralph-loop's `--max-iterations` limit
 - Does NOT re-brainstorm if a design already exists from a prior iteration
 - Does NOT skip mandatory review checkpoints (before execution starts, before push/merge) — these fire even in loop mode
+- Does NOT output the completion promise unless the condition is genuinely true — loop integrity depends on honest promise evaluation
+
+### Detecting Repeated Context (Loop Stall Prevention)
+
+If the same iteration work has been done in the last 3 iterations without progress (same test results, same files changed), hands-free should announce a stall warning:
+
+```
+[hands-free] Warning: Possible loop stall — no new progress detected in last 3 iterations.
+  Iteration N-2: [brief summary]
+  Iteration N-1: [brief summary]
+  Iteration N:   [brief summary]
+
+Recommend: narrow the scope, address a different failure, or pause and review.
+Pausing for user input — type 'continue' to proceed anyway or describe a new approach.
+```
+
+A stall is defined as: the same set of failing tests OR the same set of files modified OR no new commits in the last 3 iterations.
 
 ## Crazy-Workspace Mode
 
