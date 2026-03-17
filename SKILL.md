@@ -103,6 +103,11 @@ This activates those settings at the start of every session without typing `/han
 | Language RCE (`python -c exec`, `deno run <url>`) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `chmod 777` / privilege escalation | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Secrets detected in staged files | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| MCP read operations (fetching data, listing resources) | auto | auto | ask | auto |
+| MCP write operations (creating pages, posting messages, modifying records) | **ask** | **ask** | **ask** | **ask** |
+| `git pull` / `git pull --rebase` | auto | **ask** | ask | auto |
+| Global package install (`npm install -g`, `pip install` without venv) | **ask** | **ask** | **ask** | **ask** |
+| Shell script write embedding hard stop pattern | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Review checkpoint — optional (brainstorming→plan, execution→verify) | skip | **HARD STOP** | **HARD STOP** | skip |
 | Review checkpoint — mandatory (before execution starts) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Review checkpoint — mandatory (before push/merge) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
@@ -1471,6 +1476,23 @@ When loop-aware, monitor iteration count against `max_iterations` from `.claude/
 | 0 remaining | Ralph-loop controls termination — do not override |
 
 The "1 remaining" pause is the only mandatory pause the warning system introduces. It surfaces before ralph-loop hard-terminates, giving the user a chance to intervene.
+
+### Completion Promise Evaluation
+
+The completion promise is checked at the **start of each iteration**, before any work begins. Do NOT output the promise mid-iteration.
+
+**Promise types and how to evaluate them:**
+
+| Promise type | Example | How to evaluate |
+|---|---|---|
+| Code condition | `"all tests pass"` | Run tests; check output shows zero failures |
+| File condition | `"output.json exists"` | Check with `ls ./output.json` or `test -f ./output.json` |
+| Time-based | `"meet-9pm-utc+8"` | Run `date` or equivalent; check if current time ≥ target time |
+| State condition | `"PR is merged"` | Check with `gh pr view <id>` or `git log --oneline` |
+
+**Time-based promises:** If the promise references a time (e.g., `meet-9pm-utc+8`, `deadline-passed`, `after-midnight`), check the actual system clock at the start of each iteration using `date -u` (UTC) or `TZ='Asia/Shanghai' date` (UTC+8). Only output the promise when the current time has reached or passed the target time. Do NOT estimate, approximate, or output early.
+
+**Promise evaluation is atomic:** Evaluate the promise ONCE at the start of the iteration, not repeatedly during work. If the promise becomes true mid-iteration, output it at the start of the NEXT iteration (unless the task itself reaches natural completion — then output it immediately at that completion point, not at iteration start).
 
 ### What Hands-Free Does NOT Do in Loop Mode
 
