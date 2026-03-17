@@ -114,15 +114,18 @@ Mode and learning can be combined: `/hands-free full` then `/hands-free learning
 
 Switching modes mid-session takes effect immediately for all future approval points. Decisions already made in the previous mode are not retroactively changed.
 
-| Transition | Behavior |
-|---|---|
-| `off` → `full` | Start auto-accepting from the next approval point |
-| `full` → `partial` | Next execution-type approval point will pause instead of auto-accepting |
-| `full` → `off` | All future approvals require user input |
-| any → `crazy-workspace` | Announce activation warning; all operations in `./` auto-accepted from next action |
-| `crazy-workspace` → any | Revert to normal mode rules immediately; no residual auto-approvals |
+| Transition | Behavior | Announce |
+|---|---|---|
+| `off` → `full` | Start auto-accepting from the next approval point | `[hands-free] Full mode active` |
+| `off` → `partial` | Start auto-accepting non-execution points | `[hands-free] Partial mode active — execution decisions will pause` |
+| `full` → `partial` | Next execution-type approval point will pause | `[hands-free] Switched to partial mode` |
+| `full` → `off` | All future approvals require user input | `[hands-free] Disabled` |
+| any → `crazy-workspace` | Announce activation warning; all `./` ops auto-accepted | Full warning block (see Crazy-Workspace section) |
+| `crazy-workspace` → any | Revert to normal mode rules immediately; no residual auto-approvals | `[hands-free] Crazy-workspace deactivated — back to [mode] mode` |
 
 **`review-checkpoints` follows the mode on transitions:** switching to `partial` turns review-checkpoints on automatically; switching to `full` or `crazy-workspace` turns them off (unless explicitly set with `/hands-free review-checkpoints on`).
+
+**Agent tool dispatch:** When Claude uses the `Agent` tool to spawn a subagent, hands-free treats the dispatch decision itself as an approval point. In full mode: auto-approve dispatching agents for workflow tasks. In partial mode: auto-approve if the agent is doing non-execution work (brainstorming, research, planning); ask if the agent will execute code or write files. The subagent's own actions once dispatched are governed by its own context and Claude Code's permission settings — hands-free cannot control a subagent once it is running.
 
 ## Core Rule
 
