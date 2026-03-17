@@ -695,7 +695,7 @@ The "1 remaining" pause is the only mandatory pause the warning system introduce
 
 ### Behavior
 
-- **Auto-approve everything under `./`** — git push, merges, resets, force ops, destructive edits, file deletions, package changes, CI changes — all auto-accepted
+- **Auto-approve everything local and within `./`** — git push, merges, resets, force ops, destructive file edits, file deletions, package changes, CI/CD workflow file edits — all auto-accepted
 - **Absolute hard stops** (no exceptions, no override, even in crazy-workspace):
   - `rm -rf *` — wipes everything indiscriminately
   - `rm -rf .git` — destroys version history
