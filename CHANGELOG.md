@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased] — 2026-03-17 (iteration 2, pass 4)
+
+### Added
+
+- **Quick Reference table**: added at top of skill after opening paragraph — maps user intent to commands; includes "Always blocked" reminder
+- **Auto-commit edge cases**: defined behavior for 6 edge cases (no changes, no git repo, hook failure, secrets in staged files, git add failure, untracked-only)
+
+### Fixed
+
+- **HARD STOP section**: removed duplicate "Always hard stop in crazy-workspace too" block; replaced with cleaner "Secrets in staged files" (universal) and "Crazy-workspace scope violations" (crazy-workspace only) subsections
+- **Red flags table**: clarified which "STOP" thoughts apply only in non-crazy-workspace modes vs which are universal; added "crazy-workspace allows everything" misconception row
+
 ## [Unreleased] — 2026-03-17 (iteration 2, pass 3)
 
 ### Added

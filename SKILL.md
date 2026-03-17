@@ -7,6 +7,23 @@ description: Use when the user invokes /hands-free to enable auto-accept mode fo
 
 Auto-accept recommended options from any skill without pausing. Works with superpowers, custom skills, or any workflow with approval points.
 
+> **Quick Reference**
+>
+> | Want to... | Use |
+> |---|---|
+> | Auto-accept everything non-destructive | `/hands-free full` |
+> | Auto-accept design, pause at execution | `/hands-free partial` |
+> | Maximum autonomy in sandbox/throwaway repo | `/hands-free crazy-workspace` |
+> | Temporarily pause without changing mode | `/hands-free pause` / `/hands-free resume` |
+> | See what would be auto-accepted | `/hands-free dry-run` |
+> | Check current settings | `/hands-free status` |
+> | Understand a past auto-decision | `/hands-free explain` |
+> | Clear learned history | `/hands-free reset` |
+> | Auto-commit at milestones | `/hands-free auto-commit on` |
+> | Pause before phase transitions | `/hands-free review-checkpoints on` |
+>
+> **Always blocked (all modes):** `curl|bash`, `chmod 777`, secrets in commits, `rm -rf *`, `rm -rf .git`
+
 ## Commands
 
 ```
@@ -256,6 +273,17 @@ Content signals in staged diffs (case-insensitive):
 - Assignment patterns: `password=`, `passwd=`, `secret=`, `token=`, `api_key=`, `api_secret=`, `private_key=`
 
 Never override this check, even in crazy-workspace mode. Secrets detection is a hard stop in all modes.
+
+### Edge Cases
+
+| Situation | Behavior |
+|---|---|
+| No changes to stage | Skip auto-commit silently; do not announce or error |
+| Not in a git repo | Skip auto-commit; announce once: `[auto-commit] Skipping — not in a git repository` |
+| Pre-commit hook fails | Announce failure, pause for user input; do NOT retry automatically |
+| Secrets detected in staged files | Block with announcement; remove offending files from staging, then allow user to re-trigger |
+| `git add` fails (permission error, locked index) | Announce error, pause for user input |
+| Only untracked files, no modifications | Treat as "no changes" and skip |
 
 ### Session Log Entry
 
@@ -693,13 +721,13 @@ Two tiers of hard stops:
 - Killing processes
 - Removing or downgrading packages/dependencies
 
-**Always hard stop in crazy-workspace too**
-- `rm -rf *` — indiscriminate wipe
-- `rm -rf .git` — destroys version history
-- Pipe-to-shell (`curl | bash`, `wget | sh`, etc.) — remote code execution
-- Privilege escalation (`chmod 777`, `sudo` to system paths)
-- Secrets-containing commits (blocked by secrets detection above)
-- Any operation targeting paths **outside `./`** in crazy-workspace mode
+**Secrets in staged files** *(HARD STOP in ALL modes, no exceptions, including crazy-workspace)*
+- Any file matching the filename patterns in the Secrets Detection section
+- Any diff content matching the content signal patterns in the Secrets Detection section
+
+**Crazy-workspace scope violations** *(HARD STOP in crazy-workspace only — these operations escape `./`)*
+- Any operation targeting paths outside `./`
+- `rm -rf *` and `rm -rf .git` — even within `./`, these are indiscriminate
 
 **Shared/remote state** *(full/partial/off only — crazy-workspace overrides within target dir)*
 - Sending messages (Slack, email, GitHub comments)
@@ -722,11 +750,12 @@ digraph {
 
 | Thought | Reality |
 |---|---|
-| "Just a push to my branch" | All pushes need approval |
-| "Merge to main is obvious" | All merges need approval |
-| "Discarding saves time" | Destructive — ask first |
-| "Force push will fix it" | Irreversible — ask first |
-| "curl \| bash is standard practice" | Remote code execution — always ask |
-| "chmod 777 is just for local dev" | World-writable — always ask |
-| "It's just a token in a comment" | Secrets detection fires — block and review |
-| "This symlink stays in the repo" | Symlink may escape workspace — verify first |
+| "Just a push to my branch" | Pushes need approval in full/partial/off (auto in crazy-workspace) |
+| "Merge to main is obvious" | Merges need approval in full/partial/off (auto in crazy-workspace) |
+| "Discarding saves time" | Destructive — ask first (except crazy-workspace within `./`) |
+| "Force push will fix it" | Irreversible — ask first (except crazy-workspace within `./`) |
+| "curl \| bash is standard practice" | Remote code execution — **UNIVERSAL HARD STOP, all modes** |
+| "chmod 777 is just for local dev" | World-writable — **UNIVERSAL HARD STOP, all modes** |
+| "It's just a token in a comment" | Secrets detection fires — **UNIVERSAL HARD STOP, all modes** |
+| "This symlink stays in the repo" | Symlink may escape workspace — verify before auto-pass |
+| "crazy-workspace allows everything" | 5 universal hard stops remain — pipe-to-shell, chmod 777, secrets, rm -rf *, rm -rf .git |
