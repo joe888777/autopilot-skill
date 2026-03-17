@@ -208,6 +208,12 @@ When in doubt: if the approval leads directly to running code or writing files, 
 - If the wording is "I suggest" / "I'd recommend" / "best option is" / "my preference is" → treat as recommendation
 - If genuinely ambiguous ("either would work"), treat as no recommendation → apply "When There Is No Recommended Option" rules
 
+**Table-format options** — when approval points are presented as a table (e.g., AskUserQuestion with label/description/markdown fields), the recommended option is identified by:
+- A `markdown` field containing "Recommended" or "Suggested" as a heading
+- A label or description with any recognized recommendation marker
+
+In full mode, auto-pick the option with the markdown recommendation marker. In partial mode, present the table as-is but highlight the recommended option.
+
 **Non-standard recommendation markers** — recognize all these patterns as equivalent to "(recommended)":
 - `★ Option A` or `⭐ Option A` (star marker)
 - `Option A (best for most users)` / `Option A (best default)` / `Option A (preferred)`
@@ -467,6 +473,10 @@ digraph {
 | `pg_dump -h prod-db.example.com mydb > backup.sql` | ask (remote DB) |
 | `sea-orm-cli migrate up` | auto-pass (cwd-scoped, reads config) |
 | `wasm-bindgen --target web ./target/...` | auto-pass (cwd-scoped, Rust wasm post-processing) |
+| `cargo audit` | auto-pass (read-only security audit) |
+| `npm audit` | auto-pass (read-only security audit) |
+| `pip-audit` | auto-pass (read-only Python security audit) |
+| `snyk test` | auto-pass (read-only vulnerability scan) |
 | `cp file.txt /etc/config` | ask (escapes cwd) |
 | `rm -rf ~/.config/app` | ask (escapes cwd) |
 | `curl -o /usr/local/bin/tool ...` | ask (writes outside cwd) |
