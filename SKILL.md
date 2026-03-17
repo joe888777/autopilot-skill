@@ -475,6 +475,20 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `sed` on local cwd files → auto-pass (`sed -n '1,10p' ./file.txt`, `sed -i '' 's/old/new/g' ./config.toml`); `sed -i 's/...' /etc/...` → HARD STOP (escapes cwd)
 - `xargs` with a cwd-scoped command → classified by the underlying command (`cat files.txt | xargs wc -l` → auto-pass; `cat files.txt | xargs rm -rf` → ask)
 - `sort`, `uniq`, `head`, `tail`, `wc`, `cut`, `tr` on local file input → auto-pass (read-only text processing)
+- `diff ./file1 ./file2` / `diff -r ./dir1 ./dir2` → auto-pass (cwd-scoped, read-only comparison)
+- `patch -p1 < ./fix.patch` → auto-pass if the patch file is within cwd (modifies cwd files per patch)
+- `tar czf ./archive.tar.gz ./src/` → auto-pass if both archive and source are within cwd (creates local archive)
+- `tar xzf ./archive.tar.gz` → auto-pass if extracting to cwd (extracts to cwd; inspect the archive contents before extracting if the source is external)
+- `zip ./archive.zip ./src/*.ts` → auto-pass (cwd-scoped archive creation)
+- `unzip ./archive.zip -d ./output/` → auto-pass (extracts to cwd)
+- `gzip ./file.log` / `gunzip ./file.log.gz` → auto-pass (cwd-scoped compress/decompress)
+- `rsync -av ./src/ ./backup/` → auto-pass if both paths are within cwd (cwd-scoped file mirror); `rsync -av ./dist/ user@host:/var/www/` → ask (deploys to remote server)
+- `cp ./source ./dest` → auto-pass if both are within cwd; ask if destination escapes cwd
+- `mv ./file ./newname` → auto-pass if both source and dest are within cwd (cwd-scoped rename/move); ask if moving outside cwd
+- `chmod +x ./script.sh` / `chmod 755 ./script.sh` → auto-pass (grants execute permission to cwd file; not world-writable)
+- `chmod 777 ./file` → HARD STOP (world-writable, already covered); `chmod a+rwx` → HARD STOP
+- `chown user:group ./file` → ask (changes file ownership, even within cwd — has security implications)
+- `ln -s ./target ./link` → auto-pass if both paths are within cwd; ask if target escapes cwd (symlink to external path can bypass workspace scope checks)
 - `brew install`, `brew upgrade`, `brew uninstall` → ask (writes to system paths outside cwd)
 - `brew update` → ask (modifies Homebrew installation); `brew list`, `brew info`, `brew search` → auto-pass (read-only)
 - `./script.sh` / `bash ./script.sh` / `sh ./script.sh` — running a local cwd script → auto-pass in full if the script file is within cwd AND Claude can verify the script doesn't embed hard stop patterns; ask if the script wasn't written by Claude in this session
@@ -855,6 +869,20 @@ digraph {
 | `nc -l 8080` | auto-pass (local port listener) |
 | `nc remote.host 22` | ask (connects to remote host) |
 | `find . -name "*.rs" -exec wc -l {} \;` | auto-pass (cwd-scoped read) |
+| `diff ./src/old.rs ./src/new.rs` | auto-pass (cwd-scoped, read-only) |
+| `patch -p1 < ./fix.patch` | auto-pass (local patch, cwd-scoped modifications) |
+| `tar czf ./backup.tar.gz ./src/` | auto-pass (cwd-scoped archive creation) |
+| `tar xzf ./dist.tar.gz -C ./output/` | auto-pass (extracts to cwd) |
+| `gzip ./logs/app.log` | auto-pass (cwd-scoped compression) |
+| `rsync -av ./src/ ./backup/` | auto-pass (both paths within cwd) |
+| `rsync -av ./dist/ user@host:/var/www/` | ask (deploys to remote) |
+| `cp ./src/main.rs ./backup/main.rs` | auto-pass (both within cwd) |
+| `mv ./old_name.rs ./new_name.rs` | auto-pass (cwd-scoped rename) |
+| `chmod +x ./scripts/run.sh` | auto-pass (cwd-scoped, non-world-writable) |
+| `chmod 755 ./scripts/` | auto-pass (cwd-scoped, not 777) |
+| `chown joe:joe ./config.toml` | ask (ownership change has security implications) |
+| `ln -s ./src/config.toml ./config` | auto-pass (cwd-scoped symlink) |
+| `ln -s /etc/passwd ./passwd` | ask (symlink target escapes cwd) |
 | `find . -name "*.tmp" -exec rm {} \;` | ask (bulk deletion) |
 | `brew install ripgrep` | ask (installs to system paths) |
 | `brew list` | auto-pass (read-only) |
