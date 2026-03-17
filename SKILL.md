@@ -330,6 +330,7 @@ Additional git command behavior (governed by normal mode rules, not always-pass)
 - `git rebase <branch>` → ask in all modes (rewrites commit history even if no conflict occurs)
 - `git rebase -i` / `git rebase --interactive` → ask in all modes (interactive history rewrite)
 - `git filter-branch`, `git filter-repo` → ask in all modes (mass commit history rewrite — irreversible without backup)
+- `git bisect start`, `git bisect good`, `git bisect bad`, `git bisect reset` → auto-pass in full (debugging tool; bisect run is non-destructive read-only; bisect reset returns to HEAD)
 - `cd` within the workspace — changing into any subdirectory of the current workspace
 - `pnpm install` / `yarn install` — package manager installs (cwd-scoped; equivalent to `npm install`)
 
@@ -453,6 +454,14 @@ digraph {
 | `git push --tags` | ask (pushes to remote) |
 | `git worktree add .worktrees/feat feat` | auto-pass (local linked worktree) |
 | `psql -f ./migration.sql` | auto-pass (cwd-scoped, local DB file) |
+| `createdb mydb` | auto-pass (creates local DB; default localhost) |
+| `dropdb mydb` | ask (destructive — drops the entire database) |
+| `pg_restore ./backup.sql -d mydb` | auto-pass (restores from local file to local DB) |
+| `sqlite3 ./db.sqlite .tables` | auto-pass (read-only inspection) |
+| `sqlite3 ./db.sqlite .dump > backup.sql` | auto-pass (local backup to cwd) |
+| `git bisect start` | auto-pass (non-destructive debugging) |
+| `git bisect good abc1234` | auto-pass (marks commit as good) |
+| `git bisect reset` | auto-pass (returns to HEAD) |
 | `sqlite3 ./db.sqlite < ./schema.sql` | auto-pass (cwd-scoped, local DB file) |
 | `sqlx migrate run` | auto-pass (reads DATABASE_URL from env) |
 | `alembic upgrade head` | auto-pass (cwd-scoped, reads alembic.ini) |
