@@ -821,10 +821,19 @@ Note: CI/CD pipeline file edits (e.g., `.github/workflows/`) are local files wit
 
 ```dot
 digraph {
-    "Approval point" -> "Destructive?";
-    "Destructive?" -> "PAUSE" [label="yes"];
-    "Destructive?" -> "Mode allows?" [label="no"];
-    "Mode allows?" -> "Auto-accept" [label="yes"];
+    "Approval point" -> "Universal hard stop?";
+    "Universal hard stop?" -> "PAUSE (no override)" [label="yes"];
+    "Universal hard stop?" -> "Paused or off mode?" [label="no"];
+    "Paused or off mode?" -> "PAUSE" [label="yes"];
+    "Paused or off mode?" -> "Review checkpoint?" [label="no"];
+    "Review checkpoint?" -> "PAUSE" [label="mandatory"];
+    "Review checkpoint?" -> "PAUSE if review-checkpoints on" [label="optional"];
+    "Review checkpoint?" -> "Learned preference?" [label="no checkpoint"];
+    "PAUSE if review-checkpoints on" -> "Learned preference?" [label="off — skip"];
+    "Learned preference?" -> "Apply silently (high)" [label="high confidence"];
+    "Learned preference?" -> "Apply + announce (medium)" [label="medium confidence"];
+    "Learned preference?" -> "Mode allows?" [label="none"];
+    "Mode allows?" -> "Auto-accept recommended" [label="yes"];
     "Mode allows?" -> "PAUSE" [label="no"];
 }
 ```
