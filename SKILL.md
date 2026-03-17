@@ -727,6 +727,26 @@ digraph {
 | `cargo deny check` | auto-pass (cwd-scoped security audit) |
 | `cargo machete` | auto-pass (finds unused dependencies) |
 | `sqlx migrate revert` | ask (reverts DB migration — potentially destructive) |
+| `sqlx migrate add <name>` | auto-pass (creates migration file in cwd) |
+| `sqlx migrate info` | auto-pass (read-only migration status) |
+| `npx prisma migrate deploy` | ask (deploys migrations to prod DB — use in staging/prod only) |
+| `npx prisma migrate reset` | ask (resets the DB — drops all data and re-applies migrations) |
+| `npx prisma db push` | ask (pushes schema directly to DB without a migration) |
+| `npx prisma db seed` | auto-pass (runs seed script on local DB, cwd-scoped) |
+| `npx prisma studio` | auto-pass (local web UI for DB browsing, localhost only) |
+| `npx drizzle-kit generate:pg` | auto-pass (generates migration files in cwd) |
+| `npx drizzle-kit push:pg` | ask (pushes schema directly to DB) |
+| `npx drizzle-kit studio` | auto-pass (local web UI, localhost only) |
+| `alembic revision --autogenerate -m "..."` | auto-pass (generates migration file in cwd) |
+| `alembic downgrade -1` | ask (downgrades DB schema) |
+| `deno run ./local-script.ts` | auto-pass (cwd-scoped Deno script) |
+| `deno test ./tests/` | auto-pass (cwd-scoped Deno test runner) |
+| `deno fmt` | auto-pass (cwd-scoped Deno formatter) |
+| `deno check ./src/` | auto-pass (cwd-scoped type checking) |
+| `deno lint ./src/` | auto-pass (cwd-scoped Deno linter) |
+| `deno run https://example.com/script.ts` | **HARD STOP** (remote URL — language RCE) |
+| `node --loader ts-node/esm ./server.ts` | auto-pass (cwd-scoped TypeScript ESM) |
+| `npx concurrently "npm run watch" "npm run test"` | auto-pass (both sub-commands are cwd-scoped) |
 | `alembic downgrade -1` | ask (downgrades DB schema) |
 | `diesel migration revert` | ask (reverts last DB migration) |
 | `docker run -v ./:/app node:20 npm test` | auto-pass (mounts cwd) |
