@@ -1156,6 +1156,28 @@ Recognized dry-run flags (case-insensitive, any position in the command):
 - `bazel build //... > /tmp/build.log` → ask (dest escapes cwd, even though build auto-passes)
 - `terraform plan -out=./tfplan` → auto-pass (writing plan file to cwd; `terraform plan` already auto-passes)
 
+**`--insecure` / `--no-verify` / `--skip-ssl-verify` / `--skip-tls-verify` escalation rule:** Any command that includes a flag that disables TLS/SSL certificate verification should escalate to ask, even if the base command would auto-pass. Disabling certificate verification exposes the command to man-in-the-middle attacks.
+- `curl --insecure https://internal.example.com` → ask (even for GET; cert verification bypassed)
+- `helm upgrade myapp ./chart --insecure-skip-tls-verify` → ask (disables TLS verification)
+- `kubectl --insecure-skip-tls-verify apply -f ./manifest.yaml` → ask
+- `npm install --no-verify` → ask (bypasses pre-install verification; note: `git commit --no-verify` bypasses hooks; always ask)
+- `wget --no-check-certificate URL -O ./file` → ask (downloads without cert verification)
+- `git -c http.sslVerify=false pull` → ask (disables git HTTPS cert verification)
+
+**`--global` / `--system` / `--user` flag escalation rule:** Any command with a `--global` or `--system` flag writes outside the current directory and should ask.
+- `npm install --global <pkg>` → ask (already listed; writes to system node_modules)
+- `git config --global user.email "me@example.com"` → ask (already listed; modifies `~/.gitconfig`)
+- `pip install --user <pkg>` → ask (writes to `~/.local/lib/python*/`; outside cwd)
+- `gem install <name> --system` → ask (writes to system gem path)
+- Exception: `--global` as a flag meaning "all repos in the workspace" (e.g., some monorepo tools use `--global` to mean "all packages") — if clearly workspace-scoped, classify by the base command
+
+**Network interface binding rule:** Commands that bind to a network port matter based on the interface:
+- Binding to `localhost` / `127.0.0.1` → auto-pass (only local machine can connect)
+- Binding to `0.0.0.0` (all interfaces) → ask (network-visible; exposes to LAN/internet)
+- Binding to a specific non-localhost IP → ask (unclear scope)
+- Examples already listed: `uvicorn main:app --host 0.0.0.0` → ask; `uvicorn main:app` → auto-pass
+- New rule: if the port is explicitly set to a privileged port (`< 1024`, e.g., `:80`, `:443`) → ask (may require root or cap_net_bind_service; unusual for dev)
+
 **Config file sourcing rule (`--config` / `-c` / `--file`):** When a command reads a config file via a flag:
 - Config file within cwd → classify by the base command
 - Config file outside cwd → ask (the config could redirect the tool to operate on external paths)
