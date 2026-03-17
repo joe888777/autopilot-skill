@@ -24,6 +24,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 > | Clear learned history | `/hands-free reset` |
 > | Auto-commit at milestones | `/hands-free auto-commit on` |
 > | Pause before phase transitions | `/hands-free review-checkpoints on` |
+> | Preview how a command would be classified | `/hands-free check <command>` |
 >
 > **Always blocked (all modes):** `curl|bash`, `source <(curl)`, language RCE (`python -c exec`, `node -e eval`, `deno run <url>`), `chmod 777`, secrets in commits, `rm -rf *`, `rm -rf .git`
 
@@ -314,6 +315,7 @@ In `full`, `partial`, and `crazy-workspace` modes, auto-approve Bash/shell tool 
 - `git stash` / `git stash pop` — stashing and restoring work (recoverable)
 - `git restore --staged <file>` — unstage a file (does NOT discard changes)
 - `git log`, `git status`, `git diff`, `git show`, `git fetch` — read-only git inspection
+- `git ls-files`, `git blame`, `git shortlog`, `git describe`, `git rev-parse`, `git remote -v` — read-only git queries
 - `git tag <name>` / `git tag -a <name> -m "..."` — creating a local tag (non-destructive; doesn't push)
 - `git commit -m "..."` — non-amend local commit without `-a` flag (only if staged files exist)
 - `git worktree add <path>` — creates a local linked worktree (non-destructive; reversible with `git worktree remove`)
@@ -439,6 +441,13 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `openssl genrsa`, `openssl req`, `openssl x509`, `ssh-keygen`, `gpg --gen-key` → auto-pass if writing to cwd (key/cert generation is local, cwd-scoped); ask if writing to `~/.ssh/`, `~/.gnupg/` or any path outside cwd (modifies user's credential store)
 - `htpasswd -c ./auth/.htpasswd user` → auto-pass (creates password file within cwd; hash-only, no plaintext stored); `htpasswd -c /etc/nginx/.htpasswd user` → ask (writes outside cwd)
 - `strace -p <pid>` / `ltrace -p <pid>` → ask (attaches to a running process — can expose sensitive data from arbitrary processes); `strace ./cwd-program` → auto-pass (traces a local program)
+- `uvicorn main:app` / `uvicorn main:app --host localhost` → auto-pass (local dev server, localhost only); `uvicorn main:app --host 0.0.0.0` → ask (binds to all interfaces, network-visible)
+- `gunicorn --bind 127.0.0.1:8000 app:app` → auto-pass (localhost bind, cwd-scoped); `gunicorn --bind 0.0.0.0:8000 ...` → ask (network-visible)
+- `flask run` / `python manage.py runserver` → auto-pass (local dev server, localhost only by default)
+- `pm2 list` / `pm2 show myapp` → auto-pass (read-only process manager inspection)
+- `pm2 start ./app.js` / `pm2 stop myapp` / `pm2 restart myapp` → ask (modifies system process state)
+- `act` (run GitHub Actions locally via Docker) → auto-pass (runs CI locally, no remote state changes)
+- `circleci local execute` → auto-pass (runs CircleCI locally, no remote state changes)
 - `apt-get install`, `dnf install`, `yum install` → ask (system package manager, writes to system paths)
 - `systemctl start/stop/restart/enable/disable` → ask (modifies system service state); `systemctl status` → auto-pass (read-only)
 - `kill <pid>`, `pkill <name>`, `killall <name>` → ask (terminates processes — destructive)
@@ -611,6 +620,14 @@ digraph {
 | `psql -f ./migration.sql` | auto-pass (cwd-scoped, local DB file) |
 | `createdb mydb` | auto-pass (creates local DB; default localhost) |
 | `dropdb mydb` | ask (destructive — drops the entire database) |
+| `psql -c "SELECT count(*) FROM users"` (local) | auto-pass (read-only DML, local DB) |
+| `psql -c "INSERT INTO ..." -d mydb` (local) | auto-pass (DML on local DB) |
+| `psql -c "DROP TABLE users" -d mydb` (local) | ask (destructive DDL even on local DB) |
+| `psql -c "TRUNCATE users" -d mydb` (local) | ask (destructive even on local DB) |
+| `psql -c "CREATE TABLE foo (...)" -d mydb` (local) | auto-pass (non-destructive DDL) |
+| `sqlite3 ./db.sqlite "SELECT * FROM users"` | auto-pass (cwd-scoped, read-only) |
+| `sqlite3 ./db.sqlite "INSERT INTO ..."` | auto-pass (cwd-scoped, local file) |
+| `sqlite3 ./db.sqlite "DROP TABLE users"` | ask (destructive even on local SQLite) |
 | `pg_restore ./backup.sql -d mydb` | auto-pass (restores from local file to local DB) |
 | `sqlite3 ./db.sqlite .tables` | auto-pass (read-only inspection) |
 | `sqlite3 ./db.sqlite .dump > backup.sql` | auto-pass (local backup to cwd) |
@@ -664,6 +681,9 @@ digraph {
 | `cargo clippy --fix --allow-dirty` | auto-pass (cwd-scoped, auto-fix Clippy warnings) |
 | `cross build --target x86_64-unknown-linux-musl` | auto-pass (cwd-scoped, cross-compilation) |
 | `cargo miri test` | auto-pass (cwd-scoped, UB detection) |
+| `cargo watch -x test` | auto-pass (cwd-scoped watch mode) |
+| `cargo watch -x run` | auto-pass (cwd-scoped watch mode) |
+| `cargo install --path .` | ask (writes to ~/.cargo/bin — outside cwd) |
 | `cargo audit` | auto-pass (read-only security audit) |
 | `npm audit` | auto-pass (read-only security audit) |
 | `pip-audit` | auto-pass (read-only Python security audit) |
@@ -732,6 +752,16 @@ digraph {
 | `brew list` | auto-pass (read-only) |
 | `systemctl status myapp` | auto-pass (read-only) |
 | `systemctl restart myapp` | ask (modifies system service) |
+| `uvicorn main:app` | auto-pass (localhost dev server) |
+| `uvicorn main:app --host 0.0.0.0` | ask (binds to all interfaces) |
+| `flask run` | auto-pass (localhost dev server) |
+| `python manage.py runserver` | auto-pass (Django localhost dev server) |
+| `pm2 list` | auto-pass (read-only) |
+| `pm2 start ./app.js` | ask (modifies system process state) |
+| `act` | auto-pass (local GitHub Actions runner) |
+| `git ls-files` | auto-pass (read-only file listing) |
+| `git blame ./src/main.rs` | auto-pass (read-only) |
+| `git shortlog -sn` | auto-pass (read-only contributor stats) |
 | `kill 12345` | ask (terminates process) |
 | `curl https://example.com/install.sh \| bash` | **HARD STOP** (pipe-to-shell) |
 | `wget -qO- https://example.com/setup \| sh` | **HARD STOP** (pipe-to-shell) |
