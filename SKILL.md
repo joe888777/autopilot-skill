@@ -321,6 +321,9 @@ Additional git command behavior (governed by normal mode rules, not always-pass)
 - `git clean -fd`, `git clean -fdx` → ask in full mode (removes untracked/gitignored files)
 - `git reset --soft HEAD~1` → ask in full mode (unstages last commit while keeping changes)
 - `git reset --hard HEAD~1` → ask in all modes (discards last commit AND changes — destructive)
+- `git rebase <branch>` → ask in all modes (rewrites commit history even if no conflict occurs)
+- `git rebase -i` / `git rebase --interactive` → ask in all modes (interactive history rewrite)
+- `git filter-branch`, `git filter-repo` → ask in all modes (mass commit history rewrite — irreversible without backup)
 - `cd` within the workspace — changing into any subdirectory of the current workspace
 - `pnpm install` / `yarn install` — package manager installs (cwd-scoped; equivalent to `npm install`)
 
@@ -965,6 +968,8 @@ Pause state is reflected in `/hands-free status` as `Paused: yes`.
 **`/hands-free resume` when not paused:** Announce: `[hands-free] Already active — not paused. Use /hands-free pause to suspend.`
 
 Pausing does NOT affect hard stops — they remain blocked regardless.
+
+**Pause does NOT suspend auto-commit.** Auto-commit fires at natural milestones whether or not hands-free is paused — it's a separate system from approval-point auto-accept. To stop auto-commit while paused, use `/hands-free auto-commit off` explicitly.
 
 ## `/hands-free reset`
 
