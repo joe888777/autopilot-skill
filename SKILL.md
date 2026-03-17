@@ -158,6 +158,7 @@ If genuinely ambiguous (two skills both say "ask" for different reasons), surfac
 
 Applies to **any skill** — not just superpowers:
 - Options with recommendation → pick it
+- Single option presented → auto-accept (no choice means it's effectively a confirmation)
 - Approval to continue → approve
 - Design/plan review → approve
 - Checkpoint pause → continue
@@ -219,6 +220,9 @@ The `markdown` field is only visible when the option is focused — it surfaces 
 | systematic-debugging | Phase transitions | Proceed through all phases |
 | dispatching-parallel-agents | Agent count / task assignment approval | Pick recommended count (full only) |
 | requesting-code-review | Review scope selection | Pick recommended scope (full only) |
+| test-driven-development | "Tests failing as expected, continue?" | Auto-continue (full only) |
+| test-driven-development | Implementation approach choice | Pick recommended (full only) |
+| verification-before-completion | "Run verification commands?" | Auto-verify in full; route to debugging if failures |
 
 ## Read-Only Tool Auto-Pass
 
