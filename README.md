@@ -234,11 +234,12 @@ Run `/hands-free log` anytime to see a summary of all decisions in the current s
 
 ## Security
 
-Hands-free enforces **5 universal hard stops** in ALL modes, including `crazy-workspace`. These cannot be overridden, promoted to auto-accept, or disabled:
+Hands-free enforces **universal hard stops** in ALL modes, including `crazy-workspace`. These cannot be overridden, promoted to auto-accept, or disabled:
 
 | Pattern | Why |
 |---|---|
-| `curl \| bash`, `wget \| sh`, `eval $(curl ...)` | Remote code execution — arbitrary code from the internet |
+| `curl \| bash`, `wget \| sh`, `eval $(curl ...)`, `source <(curl ...)` | Remote code execution — arbitrary code from the internet |
+| `python -c "exec(urllib...)"`, `node -e "eval(require...)"` | Language-level RCE — fetches and executes remote code via interpreter |
 | `chmod 777`, `chmod a+rwx` | World-writable permissions — any user can modify the file |
 | Secrets in staged files | Prevent accidentally committing API keys, private keys, tokens |
 | `rm -rf *` | Indiscriminate wipe — deletes everything in scope |
@@ -267,9 +268,11 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 ## What's new in 2.0
 
 **Security (all modes, no exceptions):**
-- Universal hard stops for pipe-to-shell (`curl | bash`, `wget | sh`, `eval $(curl ...)`)
+- Universal hard stops for pipe-to-shell (`curl | bash`, `wget | sh`, `eval $(curl ...)`, `source <(curl ...)`)
+- Universal hard stops for language-level RCE (`python -c "exec(urllib...)"`, `node -e "eval(require...)"`)
 - Universal hard stops for privilege escalation (`chmod 777`, `sudo` to system paths)
 - Pre-commit secrets detection (filename patterns + content signals) before every auto-commit
+- Merge conflict detection blocks auto-commit when conflicts are unresolved
 
 **New commands:**
 - `/hands-free pause` / `/hands-free resume` — suspend without changing mode
