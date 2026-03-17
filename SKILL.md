@@ -181,6 +181,17 @@ The `markdown` field is only visible when the option is focused — it surfaces 
 | verification-before-completion → finishing-branch | Review checkpoint (mandatory) | **Always HARD STOP** — about to push/merge |
 | systematic-debugging | Phase transitions | Proceed through all phases |
 
+## Read-Only Tool Auto-Pass
+
+In `full`, `partial`, and `crazy-workspace` modes, the following Claude Code tools are always auto-approved since they are read-only and cannot modify state:
+
+- **Grep** — search file contents (`grep -r`, file pattern matching)
+- **Glob** — find files by pattern
+- **Read** — read file contents
+- **WebFetch** / **WebSearch** — fetch or search web content (read-only)
+
+These tools cannot write to disk, run code, or make side effects, so they are safe to auto-pass in all active modes. In `off` mode, they require user approval like any other tool.
+
 ## Shell Command Auto-Pass Rules
 
 In `full`, `partial`, and `crazy-workspace` modes, auto-approve Bash/shell tool calls without asking when **any** of these conditions are met:
