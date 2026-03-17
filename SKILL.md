@@ -529,6 +529,8 @@ A shell command is **scoped to the current directory** if it contains no paths t
 
 **Compound command rule:** For shell commands with `&&`, `||`, or `;` operators, classify by the most restrictive component. If any component would be a HARD STOP → HARD STOP. If any component would ask → ask. Only auto-pass if ALL components independently auto-pass.
 
+**Trivially safe commands in compounds:** The following commands are considered transparent and do NOT elevate the classification of a compound: `echo`, `printf`, `true`, `false`, `exit`, `read`, `sleep`, `date`, `pwd`, `ls`, `cat` (reading cwd files). If a compound contains ONLY these plus auto-pass commands, the compound auto-passes. Example: `echo "Building..." && cargo build` → auto-pass (echo is transparent).
+
 **Subshell `$(...)` rule:** A command substitution `$(inner)` is classified by its inner command. If the inner command would be a hard stop or ask, the outer command inherits that classification regardless of what the outer command does.
 - `echo $(ls ./src)` → auto-pass (inner `ls ./src` is cwd-scoped read-only)
 - `rm -rf $(cat ./files.txt)` → ask (inner is auto-pass, but outer `rm -rf` with dynamic paths is destructive)
@@ -1517,8 +1519,12 @@ For time-based promises, include remaining time:
 [hands-free] Iteration 7 — time remaining until promise: ~2h 14m
 ```
 
-**Build state health check.** Before routing to any superpowers skill, check if the project compiles/builds:
-- If `cargo build` (Rust) or equivalent fails with compilation errors → route to systematic-debugging first, not executing-plans
+**Build state health check.** Before routing to any superpowers skill, check if the project compiles/builds. Detect the project type from root-level config files:
+- **Rust** (`Cargo.toml`): run `cargo build` — if it fails with errors → systematic-debugging
+- **Python** (`pyproject.toml` / `setup.py` / `requirements.txt`): run `python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")` or check with mypy — if errors → systematic-debugging
+- **TypeScript/JavaScript** (`package.json` + `tsconfig.json`): run `npx tsc --noEmit` or `npm run build` — if errors → systematic-debugging
+- **Go** (`go.mod`): run `go build ./...` — if errors → systematic-debugging
+- If no build tool is detected or if checking would take too long → skip health check and route based on git state only
 - If build passes but tests fail → route to systematic-debugging
 - If build passes and tests pass → proceed with normal phase routing
 
@@ -1710,6 +1716,26 @@ digraph {
     "Within ./?" -> "HARD STOP" [label="no — escapes scope"];
 }
 ```
+
+---
+
+## Known Limitations
+
+- **Session-scoped state:** Hands-free mode, pause state, and the session log are in-memory only. They reset at the start of every new conversation. CLAUDE.md `Default mode:` directives re-apply automatically, but mode changes made mid-session are lost.
+
+- **No cross-session auto-commit history:** The session log does not persist. For durable history, use `git log` (auto-commits are tagged) or `preferences.md` (learned rules).
+
+- **Concurrent sessions not coordinated:** If two Claude Code sessions run on the same repo simultaneously, their auto-commits can interleave. Hands-free cannot detect concurrent sessions. The `index.lock` error is the only signal.
+
+- **Shell command classification is static:** Hands-free classifies commands based on their text, not their runtime behavior. A command that looks cwd-scoped but at runtime accesses a symlink that escapes the workspace would be classified as cwd-scoped (false negative). CLAUDE.md overrides can address known exceptions.
+
+- **Preference keys are skill-scoped:** Preferences recorded for `writing-plans` only apply to the writing-plans skill. A different custom skill with a similar approval point format won't benefit from writing-plans preferences.
+
+- **Approval points in streaming output:** If a skill streams its output and presents an approval point mid-stream, hands-free applies the decision immediately — there's no rollback if the stream was already partially processed.
+
+- **Tool result prompt injection:** Hands-free guards against this but relies on the principle that approval points appear only in Claude's own generated text. Sophisticated adversarial inputs that look like genuine approval points may not always be caught.
+
+- **Complex shell aliases:** If a command is a shell alias defined in `~/.bashrc`, hands-free cannot inspect the alias definition and classifies by the alias name only. Unknown alias names are treated as cwd-scoped commands (same as any unfamiliar command name).
 
 ---
 
