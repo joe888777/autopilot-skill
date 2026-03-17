@@ -1096,6 +1096,35 @@ A shell command is **scoped to the current directory** if it contains no paths t
   - `temporal server start-dev` → auto-pass (starts a local dev Temporal server; localhost only)
   - `temporal env add` → ask (modifies CLI environment config)
 
+**Dry-run / check / plan flag detection (meta-rule):** Many commands become read-only when a dry-run or preview flag is passed. If a command that would normally ask includes one of these flags, auto-pass it instead. This rule applies UNLESS the base command is a HARD STOP (e.g., `curl | bash --dry-run` is still HARD STOP).
+
+Recognized dry-run flags (case-insensitive, any position in the command):
+- `--dry-run` — widely supported (git, helm, kubectl, netlify, flyway, etc.)
+- `--dryrun` — some tools omit the hyphen
+- `--check` — Ansible, pip-audit, some linters
+- `--plan` — Terraform (via `terraform plan`; note: `pulumi up --plan` does NOT exist; use `pulumi preview` instead)
+- `--preview` — some deployment CLIs
+- `--no-commit` — git operations that stage but don't commit (already covered above)
+- `--whatif` — PowerShell-style; rare in Unix tools
+- `-n` when used as a dry-run flag (e.g., `make -n target`, `rsync -n ./src/ remote:`) — distinguish from `-n` as a line-count flag in `head -n 20`
+
+**Dry-run detection examples:**
+- `flyway migrate --dry-run` → auto-pass (would normally ask; `--dry-run` makes it read-only preview)
+- `netlify deploy --dry-run` → auto-pass (normally ask)
+- `helm upgrade myapp ./chart --dry-run` → auto-pass (normally ask)
+- `kubectl apply -f ./k8s/ --dry-run=client` → auto-pass (validates without applying)
+- `kubectl apply -f ./k8s/ --dry-run=server` → auto-pass (server-side validation; read-only)
+- `rsync -n ./src/ remote:` → auto-pass (rsync `-n` is dry-run; shows what would transfer without doing it)
+- `make -n build` → auto-pass (prints commands without executing)
+- `celery -A app migrate --dry-run` → auto-pass
+- `ansible-playbook site.yml --check` → auto-pass (already listed; `--check` is Ansible's dry-run flag)
+- `git commit --dry-run` → auto-pass (shows what would be committed without committing)
+
+**Caveats:**
+- The `--dry-run` flag must actually be a genuine no-op preview. If a tool's `--dry-run` still writes state or sends network requests (some tools have partial dry-run support), treat it as ask.
+- If the base command is a HARD STOP (e.g., pipe-to-shell, `chmod 777`), the dry-run flag does NOT change the classification.
+- When in doubt about whether `--dry-run` is a true no-op for an unlisted tool, use ask.
+
 **Compound command rule:** For shell commands with `&&`, `||`, or `;` operators, classify by the most restrictive component. If any component would be a HARD STOP → HARD STOP. If any component would ask → ask. Only auto-pass if ALL components independently auto-pass.
 
 **Trivially safe commands in compounds:** The following commands are considered transparent and do NOT elevate the classification of a compound: `echo`, `printf`, `true`, `false`, `exit`, `read`, `sleep`, `date`, `pwd`, `ls`, `cat` (reading cwd files). If a compound contains ONLY these plus auto-pass commands, the compound auto-passes. Example: `echo "Building..." && cargo build` → auto-pass (echo is transparent).
@@ -2831,6 +2860,35 @@ Both `flyway migrate` and `liquibase update` are classified as ask because they 
 ### "`go generate ./...` is asking for confirmation"
 
 `go:generate` directives can run arbitrary commands (shell scripts, code generators, API fetchers). Unlike `go build` or `go test`, there's no guarantee about what will be executed. Hands-free asks so you can review the generate directives first. Use `grep -r '//go:generate' ./` to inspect what will run, then confirm the prompt.
+
+### "Why does `flyway migrate --dry-run` auto-pass but `flyway migrate` asks?"
+
+The `--dry-run` flag makes any command a read-only preview. `flyway migrate --dry-run` shows which migrations WOULD run without actually running them — it's safe to auto-pass. `flyway migrate` without `--dry-run` applies pending migrations to the database schema, which is a potentially irreversible change. This distinction applies to any tool that supports `--dry-run`.
+
+### "`gh extension install` is being blocked"
+
+GitHub CLI extensions are installed from remote GitHub repositories into `~/.local/share/gh/` (outside cwd). This is classified as ask because: (1) it downloads and installs remote code, and (2) it writes outside the workspace. Review the extension's source on GitHub before confirming. `gh extension list` (read-only inspection) is auto-pass.
+
+### "`celery call` is being blocked but I'm just testing locally"
+
+`celery -A app call <task>` dispatches a task message to the message broker (RabbitMQ, Redis, etc.) which then routes it to a worker. Even on localhost, this creates a side effect in the message queue that could trigger actions in other services (e.g., sending emails, writing to databases, making API calls). Use `celery -A app inspect active` (auto-pass) to verify the worker is running before confirming the call.
+
+### "`nix-env -i` is blocked but `nix develop` works fine"
+
+`nix develop` drops you into a shell with packages available for the session only — no permanent installation, no writes outside cwd. `nix-env -i <package>` installs into your user Nix profile (`~/.nix-profile`), which persists across sessions and affects all projects. This is analogous to `brew install` — writing to system/user paths triggers an ask. Use `nix develop` (via `flake.nix`) for project-local dependencies instead.
+
+### "A command with `--dry-run` is still being blocked"
+
+Check whether the tool you're using treats `--dry-run` as a true no-op. Some tools' `--dry-run` still sends API requests or writes partial state. If hands-free doesn't recognize the dry-run flag for your tool, you can add a CLAUDE.md override:
+```markdown
+# hands-free overrides
+- mycommand migrate --dry-run → auto-pass (confirmed no-op preview)
+```
+Alternatively, if the base command is a HARD STOP (pipe-to-shell, `chmod 777`, etc.), `--dry-run` cannot override it — those blocks are unconditional.
+
+### "`hg push` is blocked just like `git push`"
+
+Yes, intentionally. `hg push` sends commits to a remote Mercurial repository, just like `git push`. It requires user confirmation in full/partial/off modes (auto in crazy-workspace). `hg pull` is auto-pass because it only fetches — it doesn't update the working directory (use `hg update` after pulling, which is auto-pass).
 
 ## HARD STOP — Always Pause
 
