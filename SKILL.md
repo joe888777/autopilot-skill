@@ -229,8 +229,11 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - Symlinked paths that resolve outside the workspace (e.g., `ln -s /etc target` followed by operations on `target`)
 - Shell variable expansions that point outside cwd: `$HOME`, `~`, `$XDG_*`, `$TMPDIR` used as write targets
 - Pipe-to-shell patterns: `| bash`, `| sh`, `| zsh` after a network fetch — always HARD STOP regardless of path
+- Remote database connection strings in the command line: a URI of the form `postgresql://non-localhost`, `mysql://non-localhost`, `mongodb://non-localhost`, etc. where the host is not `localhost`, `127.0.0.1`, or a Unix socket path → ask (potentially targets a remote/shared database)
 
 If the command only references relative paths, current-dir files, or env vars scoped to the project, it is safe to auto-pass.
+
+**Database connection note:** Commands that read the connection string from an env var (e.g., `DATABASE_URL`) or config file (e.g., `alembic.ini`, `.env`) are treated as cwd-scoped by default — the env var source is not inspected at command-parse time. If the user is concerned about remote DB writes, use CLAUDE.md overrides to add explicit per-project rules (e.g., "Shell commands containing `psql postgresql://prod` must always ask").
 
 ### Decision flow for shell commands
 
@@ -271,6 +274,12 @@ digraph {
 | `bun run build` | auto-pass (cwd-scoped) |
 | `psql -f ./migration.sql` | auto-pass (cwd-scoped, local DB file) |
 | `sqlite3 ./db.sqlite < ./schema.sql` | auto-pass (cwd-scoped, local DB file) |
+| `sqlx migrate run` | auto-pass (reads DATABASE_URL from env) |
+| `alembic upgrade head` | auto-pass (cwd-scoped, reads alembic.ini) |
+| `npx prisma migrate dev` | auto-pass (cwd-scoped) |
+| `diesel migration run` | auto-pass (cwd-scoped) |
+| `psql postgresql://prod-db.example.com/mydb -c "..."` | ask (remote DB host) |
+| `DATABASE_URL=postgresql://prod-db/mydb sqlx migrate run` | ask (remote DB in command line) |
 | `grep -r "pattern" ./src` | auto-pass (cwd-scoped, read-only) |
 | `sed -i '' 's/foo/bar/g' ./config.toml` | auto-pass (cwd-scoped file edit) |
 | `curl -o ./tool https://example.com/tool` | auto-pass (writes to cwd) |
@@ -572,6 +581,11 @@ Waiting for input...
 
 This is always a HARD STOP — hands-free does NOT auto-proceed through its own review checkpoints.
 
+**Option behavior:**
+- **[C] Continue** — proceed to the next phase immediately; log `[review-checkpoint] [Phase] → Continue`
+- **[R] Revise** — prompt: `What would you like to revise? Describe the change and I'll update the [phase output] before proceeding.` then wait for user input describing the revision; apply it, then re-surface the checkpoint summary
+- **[S] Stop** — announce `Paused at review checkpoint. Resume by saying "continue to [next phase]" when ready.` then await user instruction
+
 ### Review Checkpoint Triggers by Superpowers Skill
 
 | Completed Phase | Next Phase | Fires In |
@@ -607,12 +621,13 @@ Events logged: `[brainstorming]`, `[writing-plans]`, `[executing-plans]`, `[veri
 
 ## `/hands-free explain`
 
-When invoked, explain the reasoning behind the most recent auto-accept decision:
+When invoked, explain the reasoning behind the most recent auto-accept **or hard stop** decision:
 
+**Auto-accept:**
 ```
 /hands-free explain
 
-Last auto-accept: [writing-plans] subagent-driven
+Last decision: [auto-accept] [writing-plans] subagent-driven
 
 Why:
   Skill presented 2 options: "subagent-driven" and "parallel-session"
@@ -623,7 +638,22 @@ Why:
 Override: type /hands-free off and re-run the last command to choose manually
 ```
 
-If no auto-accept has been made in this session: `No auto-accept decisions have been made yet this session.`
+**Hard stop:**
+```
+/hands-free explain
+
+Last decision: [hard-stop] curl | bash detected
+
+Why:
+  Command: curl https://example.com/install.sh | bash
+  Pattern matched: pipe-to-shell (| bash after network fetch)
+  Rule: universal hard stop — applies in ALL modes including crazy-workspace
+  Cannot be overridden or promoted to auto-accept
+
+To install the tool safely: download first with curl -o ./tool.sh, review the file, then run it
+```
+
+If no decision has been made in this session: `No auto-accept or hard-stop decisions have been recorded this session.`
 
 ## `/hands-free pause` and `/hands-free resume`
 
