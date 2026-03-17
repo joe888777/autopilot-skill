@@ -309,7 +309,9 @@ In `full`, `partial`, and `crazy-workspace` modes, auto-approve Bash/shell tool 
 - `source ./env.sh` / `. ./env.sh` (cwd-scoped local shell script) → auto-pass in full if the file is within cwd; the content scan rule also applies — if the script contains hard stop patterns, the file cannot be auto-sourced
 - Note: `source <(curl ...)` and `source <(wget ...)` are HARD STOP (remote code execution, already covered)
 - `git init` — initializing a repo
-- `git add` — staging files (not destructive)
+- `git add` — staging specific files by name or pattern (not destructive; only stages tracked files within cwd)
+- `git add -u` / `git add --update` — stages all modified tracked files (not new untracked files; cwd-scoped; auto-pass)
+- Note: `git add -p` / `git add --interactive` / `git add --patch` → ask (launches an interactive interface requiring user input to review hunks; not suitable for silent auto-pass)
 - `git checkout -b <branch>` — creating a new local branch (non-destructive)
 - `git checkout <branch>` — switching branches (non-destructive when no uncommitted changes)
 - `git switch <branch>` — modern branch switch (same as checkout; safe)
@@ -344,6 +346,10 @@ Additional git command behavior (governed by normal mode rules, not always-pass)
 - `npm update` / `pnpm update` / `yarn upgrade` → auto-pass (updates package lock/yarn.lock; cwd-scoped)
 - `pip install --upgrade <package>` (venv active) → auto-pass (upgrades a specific package in the active venv)
 - `pip install --upgrade <package>` (no venv) → ask (upgrades system/user Python package — escapes cwd)
+- `git diff --staged` / `git diff --cached` → auto-pass (read-only inspection of staged changes)
+- `git cherry-pick -n <commit>` → auto-pass in full (cherry-picks without committing — changes staged but not committed, reversible)
+- `git format-patch <range>` → auto-pass (creates `.patch` files in cwd; read-only export)
+- `git bundle create ./repo.bundle --all` → auto-pass if writing to cwd (packages repo history into a bundle file)
 - `git revert <commit>` → auto-pass in full mode (creates a new commit, reversible)
 - `git cherry-pick <commit>` → auto-pass in full mode (applies a commit, non-destructive)
 - `git clean -n` → auto-pass (dry run, read-only)
@@ -486,6 +492,8 @@ Examples:
 **Env-var prefix rule:** A command of the form `KEY=value cmd arg...` is classified by its underlying `cmd`, not by the env var prefix. `DATABASE_URL=postgresql://localhost cargo test` → auto-pass (cargo test is cwd-scoped). `API_KEY=secret curl https://api.example.com/upload` → ask (escapes cwd). The env var prefix does not change the classification.
 
 If the command only references relative paths, current-dir files, or env vars scoped to the project, it is safe to auto-pass.
+
+**CI environment note:** When running in a CI environment (detected by `CI=true`, `GITHUB_ACTIONS=true`, `CIRCLECI=true`, or similar env vars), hands-free's auto-pass rules remain unchanged — CI runs in an isolated environment with no persistent state concerns. Auto-commit in CI is typically unnecessary since CI commits are made by the CI system, but it is not blocked. The user's configured mode applies as usual.
 
 **Database connection note:** Commands that read the connection string from an env var (e.g., `DATABASE_URL`) or config file (e.g., `alembic.ini`, `.env`) are treated as cwd-scoped by default — the env var source is not inspected at command-parse time. If the user is concerned about remote DB writes, use CLAUDE.md overrides to add explicit per-project rules (e.g., "Shell commands containing `psql postgresql://prod` must always ask").
 
@@ -714,6 +722,14 @@ digraph {
 | `black .` | auto-pass (cwd-scoped Python formatter) |
 | `isort ./src` | auto-pass (cwd-scoped import sorter) |
 | `bandit -r ./src` | auto-pass (cwd-scoped security linter) |
+| `pylint ./src` | auto-pass (cwd-scoped Python linter) |
+| `flake8 ./src` | auto-pass (cwd-scoped Python linter) |
+| `mypy --strict ./src` | auto-pass (cwd-scoped type checking) |
+| `git add -u` | auto-pass (stages modified tracked files) |
+| `git add -p` | ask (interactive staging — requires user input) |
+| `git diff --staged` | auto-pass (read-only) |
+| `git cherry-pick -n abc1234` | auto-pass (stages changes without committing) |
+| `git format-patch HEAD~3..HEAD` | auto-pass (creates patch files in cwd) |
 | `safety check` | auto-pass (cwd-scoped, checks vulnerable packages) |
 | `coverage run -m pytest` | auto-pass (cwd-scoped) |
 | `coverage html` | auto-pass (cwd-scoped, generates htmlcov/) |
