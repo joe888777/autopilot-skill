@@ -163,6 +163,8 @@ Applies to **any skill** — not just superpowers:
 - Approval to continue → approve
 - Design/plan review → approve
 - Checkpoint pause → continue
+- `[Y/n]` or `yes/no` confirmation with `Y` as default → auto-accept `Y` in full mode; ask in partial/off
+- `[y/N]` or `no/yes` confirmation with `N` as default → ask in all modes (the default is "no", so proceed would override the safe default)
 
 ### When There Is No Recommended Option
 
@@ -333,6 +335,9 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - Pipe-to-shell patterns: `| bash`, `| sh`, `| zsh` after a network fetch — always HARD STOP regardless of path
 - Remote database connection strings in the command line: a URI of the form `postgresql://non-localhost`, `mysql://non-localhost`, `mongodb://non-localhost`, etc. where the host is not `localhost`, `127.0.0.1`, or a Unix socket path → ask (potentially targets a remote/shared database)
 - Global package installs that write outside cwd: `npm install -g`, `pip install` without active virtualenv (writes to system/user Python), `cargo install` (writes to `~/.cargo/bin`), `pip install --user` → ask
+- `pip install git+https://...` or `pip install <url>` → ask (installs from a URL or git repo, potentially untrusted code)
+- `pip install -r requirements.txt` with active venv → auto-pass (installs project dependencies from checked-in file)
+- `pip install -r requirements.txt` without venv → ask (same rule as bare pip install)
 - Docker mounts escaping the workspace: `docker run -v /:/host` or `-v ~/.ssh:/ssh` (mounts system or home directories into container) → ask; `-v ./:/app` (mounts cwd) → auto-pass
 - `git config --global` or `git config --system` → ask (modifies global/system git config outside cwd)
 - `ssh user@host`, `scp user@host:...`, `rsync` to/from remote host → ask (remote machine access — not within `./`)
