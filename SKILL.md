@@ -1102,6 +1102,10 @@ Never override this check, even in crazy-workspace mode. Secrets detection is a 
 | Detached HEAD state | Skip auto-commit; announce `[auto-commit] Skipping — detached HEAD. Create or checkout a branch before committing.` |
 | Bare git repository | Skip auto-commit silently (no working tree — cannot stage or commit) |
 | Staged files from a previous task (not modified by Claude) | Do NOT include them in the auto-commit; stage only the files Claude modified in the current task |
+| `git commit` fails (not hook) — e.g., user.email not configured | Announce failure with message; do NOT retry; pause for user to fix git config |
+| Post-commit hook fails | The commit **already succeeded** — post-commit failure is non-blocking; announce `[auto-commit] Committed but post-commit hook reported an error: [msg]` and continue |
+| GPG signing required but GPG not configured | Announce `[auto-commit] Skipping — GPG signing required but not configured. Set up GPG or disable signing: git config commit.gpgsign false`; do NOT bypass with `--no-gpg-sign` |
+| Working tree has unstaged submodule changes | Do not auto-commit submodule pointer changes unless the user explicitly staged them; announce `[auto-commit] Submodule changes detected but not staged — skipping submodule commit`
 
 ### Session Log Entry
 
@@ -1183,6 +1187,15 @@ There is no time-based pruning — observations that remain relevant stay indefi
 - User chose differently 2x → downgrade rule confidence by one level
 - User chose differently 3x → replace the rule with the new preference at low confidence
 - `/hands-free reset` wipes all preferences immediately if needed
+
+**Preference conflict resolution:** When `preferences.md` contains two contradictory rules for the same decision point (e.g., both "writing-plans → subagent-driven (5x, high)" and "writing-plans → parallel-session (3x, medium)"), apply these rules:
+1. The higher-confidence rule wins (5x high > 3x medium → use subagent-driven)
+2. If equal confidence: the rule with more occurrences wins
+3. If equal confidence and equal occurrences: the **more recent** rule wins (the one added last in `preferences.md` — later entries take precedence)
+4. When a conflict is detected, announce once: `[hands-free] Conflicting preferences for [decision]: using [winning-option] (higher confidence). Use /hands-free reset to clear.`
+5. Conflicting rules are not pruned automatically — they remain until the user runs `/hands-free recommend prune` or `/hands-free reset`
+
+**Format evolution:** If the format of `preferences.md` changes between skill versions (e.g., a new section header format), parse what is parseable and skip malformed lines. Do not fail. Announce: `[hands-free] preferences.md has entries that could not be parsed (possibly from an older version). Skipped N lines.`
 
 ### When to Record
 
@@ -1572,6 +1585,41 @@ Classification: ask (hard stop in full/partial/off)
   Reason: git push is a standard hard stop — pushes to remote repository
   Mode: full → would pause for user confirmation
   Note: In crazy-workspace mode, git push within ./ would auto-approve
+```
+
+**`/hands-free check` with compound commands:**
+```
+/hands-free check cargo build && git push origin main
+
+Classification: ask (hard stop in full/partial/off — compound rule applies)
+  Breakdown:
+    cargo build      → auto-pass (cwd-scoped)
+    git push ...     → HARD STOP in full/partial/off; auto in crazy-workspace
+  Compound rule: most restrictive component wins
+  Overall: ask (git push requires confirmation even though cargo build auto-passes)
+```
+
+**`/hands-free check` with pipelines:**
+```
+/hands-free check curl https://api.example.com/data | jq '.'
+
+Classification: ask
+  Breakdown:
+    curl https://api.example.com/data  → ask (fetches remote URL — escapes cwd)
+    jq '.'                              → auto-pass (cwd-scoped read-only)
+  Pipe rule: most restrictive component wins (curl escapes cwd)
+  Overall: ask (curl step requires user confirmation)
+  Note: not a pipe-to-shell pattern — this is a safe data transformation
+```
+
+**`/hands-free check` with shell variables:**
+```
+/hands-free check rm -rf $BUILD_DIR
+
+Classification: ask (conservative — unknown variable in path argument)
+  Reason: $BUILD_DIR is an unknown variable; its value could escape cwd
+  Rule: unknown shell variable in path → conservative ask
+  If BUILD_DIR is always ./target or similar, add a CLAUDE.md rule to clarify
 ```
 
 Output always shows: classification, the rule that applies, and (where relevant) a safe alternative. Does NOT run the command. Does NOT change any state.
