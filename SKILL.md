@@ -970,6 +970,47 @@ A shell command is **scoped to the current directory** if it contains no paths t
   - `turso db list`, `turso db show`, `turso db shell <name>` → auto-pass (read/inspect local/remote Turso DB)
   - `turso db create`, `turso db destroy` → ask (creates/destroys remote DB — external)
   - `turso db replicate` → ask (modifies remote replication)
+- **GitHub CLI extended:**
+  - `gh codespace list`, `gh codespace view` → auto-pass (read-only codespace inspection)
+  - `gh codespace ssh` → ask (connects to a remote codespace via SSH)
+  - `gh codespace create` / `gh codespace delete` → ask (creates/destroys remote compute)
+  - `gh repo sync` → ask (syncs remote fork with upstream — writes to remote repo)
+  - `gh repo clone` → auto-pass (clones to cwd; equivalent to `git clone`)
+  - `gh extension list` → auto-pass (read-only); `gh extension install <name>` → ask (installs from remote into `~/.local/share/gh/`)
+  - `gh extension upgrade` → ask (remote download); `gh extension remove` → ask
+- **`pnpm dlx` and `yarn dlx`:**
+  - `pnpm dlx <well-known-package>` → auto-pass (same rules as `npx <well-known>`; `pnpx` is an alias)
+  - `pnpm dlx <unfamiliar-package>@latest` → ask (downloads and executes arbitrary remote package)
+  - `yarn dlx <well-known-package>` → auto-pass; `yarn dlx <unfamiliar>` → ask
+- **RabbitMQ CLI tools:**
+  - `rabbitmq-diagnostics status`, `rabbitmqctl list_queues/exchanges/bindings` → auto-pass (read-only localhost inspection)
+  - `rabbitmqctl purge_queue <queue>`, `rabbitmqctl delete_queue <queue>` → ask (destructive)
+  - `rabbitmqctl stop` / `rabbitmqctl stop_app` → ask (stops the RabbitMQ service)
+- **Celery (Python task queue):**
+  - `celery -A <app> inspect active/registered/status` → auto-pass (read-only worker inspection; localhost)
+  - `celery -A <app> worker` → auto-pass (starts a local worker)
+  - `celery -A <app> call <task>` → ask (dispatches task to queue — triggers remote execution)
+  - `celery -A <app> purge` → ask (deletes all pending tasks — destructive)
+- **Mercurial (`hg`):**
+  - `hg log/diff/status/annotate/manifest` → auto-pass (read-only; equivalent to git commands)
+  - `hg add/addremove/commit/update` → auto-pass (local operations; equivalent to git add/commit/checkout)
+  - `hg push` → ask (pushes to remote); `hg pull` → auto-pass (fetches only, no local update)
+  - `hg strip` → ask (removes changesets from history — destructive)
+- **Git sparse-checkout and bundle:**
+  - `git sparse-checkout init/set/list` → auto-pass (local working tree scope config)
+  - `git bundle create ./backup.bundle HEAD` → auto-pass (cwd bundle file; local only)
+  - `git bundle verify ./backup.bundle`, `git bundle unbundle ./backup.bundle` → auto-pass (local operations)
+- **Terminal and system tools:**
+  - `tput cols/lines/colors/setaf/sgr0` → auto-pass (read-only query or stdout ANSI codes; no state change)
+  - `logger "message"` → ask (writes to system syslog — outside cwd, persists)
+  - `stty -a` → auto-pass (read-only); `stty -echo` → auto-pass (session-scoped terminal mode, resets on close)
+- **Monitoring CLIs:**
+  - `promtool check rules ./alerts.yml`, `promtool lint ./prometheus.yml` → auto-pass (cwd-scoped validation)
+  - `promtool query instant http://localhost:9090 '<query>'` → auto-pass (read-only localhost Prometheus)
+  - `promtool query instant http://remote:9090 '<query>'` → ask (remote Prometheus)
+  - `datadog-agent status/health` → auto-pass (read-only); `grafana-cli plugins install` → ask (system paths)
+- **Linear CLI:**
+  - `linear issue list/view` → auto-pass (read-only); `linear issue create/pr merge` → ask (external shared state)
 - `apt-get install`, `dnf install`, `yum install` → ask (system package manager, writes to system paths)
 - `systemctl start/stop/restart/enable/disable` → ask (modifies system service state); `systemctl status` → auto-pass (read-only)
 - `kill <pid>`, `pkill <name>`, `killall <name>` → ask (terminates processes — destructive)
