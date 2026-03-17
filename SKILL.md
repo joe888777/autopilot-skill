@@ -597,18 +597,18 @@ If the state cannot be determined (ambiguous), default to resuming executing-pla
 [ralph #4] test: add missing integration tests
 ```
 
-Read the iteration count from `.claude/.ralph-loop.local.md` state file.
+Read the iteration count from `.claude/.ralph-loop.local.md` state file. If the iteration count cannot be determined (missing field, unreadable file), use `[ralph]` without a number: `[ralph] feat: add input validation`.
 
 ### Superpowers Skill Routing in Loop Mode
 
 | Iteration State | Superpowers Skill | Hands-Free Action |
 |---|---|---|
 | No prior work | brainstorming → writing-plans | Auto-accept all, full flow |
-| Plan exists, not started | executing-plans | Auto-continue batches |
-| Plan in progress | executing-plans | Resume from last batch |
+| Plan exists, not started | writing-plans → executing-plans | **Mandatory review checkpoint** before execution |
+| Plan in progress | executing-plans | Resume from last batch; auto-continue |
 | Tests failing | systematic-debugging | Auto-proceed through phases |
-| Implementation done | verification-before-completion | Auto-verify |
-| All complete | finishing-a-development-branch | PAUSE for push/merge |
+| Implementation done | verification-before-completion | Auto-verify (optional checkpoint if `review-checkpoints on`) |
+| All complete | finishing-a-development-branch | **Mandatory review checkpoint**, then PAUSE for push/merge |
 
 ### Quick Start
 
@@ -657,10 +657,11 @@ The "1 remaining" pause is the only mandatory pause the warning system introduce
 
 ### What Hands-Free Does NOT Do in Loop Mode
 
-- Does NOT auto-accept `git push` — still a hard stop
+- Does NOT auto-accept `git push` in `full`/`partial`/`off` modes — still a hard stop (crazy-workspace: auto within `./`)
 - Does NOT skip the completion promise check — ralph-loop controls termination
 - Does NOT override ralph-loop's `--max-iterations` limit
 - Does NOT re-brainstorm if a design already exists from a prior iteration
+- Does NOT skip mandatory review checkpoints (before execution starts, before push/merge) — these fire even in loop mode
 
 ## Crazy-Workspace Mode
 
