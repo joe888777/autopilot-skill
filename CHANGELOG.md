@@ -54,7 +54,29 @@
 - README commands section: all 16 commands documented including dry-run, pause/resume, explain, reset, review-checkpoints
 - README "What it does": added pipe-to-shell/secrets blocking and review checkpoints; updated "Three modes" to "Four modes"
 
-### Added (continued, later in same day)
+### Added (continued, same day — iteration 2)
+
+- Read-only tool auto-pass: Grep, Glob, Read, WebFetch/WebSearch explicitly documented as always auto-approved (read-only, no side effects); mode table row updated from "Grep tool calls" to "Read-only tools"
+- CLAUDE.md integration: per-project preference overrides via CLAUDE.md `# hands-free overrides` section; takes precedence over global preferences.md
+- FAQ section in README: 6 common questions (custom skill compatibility, safety, preference updates, crazy-workspace on shared repos, sensitive data, disabling learning)
+- Shadow mode: `/hands-free off` + `learning high` added to Recommended Setup table
+- Auto-commit: step 2 now explicitly reads `git log --oneline -5` to detect commit message style
+- Crazy-workspace production warning: blockquote warning not to use on production repos
+- Comprehensive decision flowchart: updated digraph in HARD STOP section to show full path through universal hard stops → paused/off → review checkpoint → learned preference → mode allows
+- Session log: documented as in-memory only (not persisted), with pointer to git log and preferences.md for durability
+- Loop state algorithm: fallback documented when user commits without auto-commit (no `[ralph #N]` tags)
+- `What's new in 2.0` section in README
+
+### Fixed (same day — iteration 2)
+
+- `rm -rf *`: README mode table showed HARD STOP in all modes — corrected to `ask` in full/partial/off (user is prompted, not blocked); HARD STOP only in crazy-workspace
+- `git push`: README mode table showed HARD STOP in full/partial/off — corrected to `ask` (user can confirm); semantics: `ask` = pause+confirm, HARD STOP = blocked
+- Shared/remote state: incorrectly annotated as crazy-workspace overrideable — external services (GitHub API, Slack) are not within `./` so crazy-workspace does not override
+- Crazy-workspace behavior description: "CI changes" → "CI/CD workflow file edits" to distinguish local file edits (auto-approved) from triggering external deployments (hard stop)
+- Quick Reference table: `/hands-free log` and `/hands-free recommend` were missing
+- Recording format: `## Learned Rules` split into high/medium sections to match preferences.md structure
+
+### Added (continued, later in same day)  (original list)
 
 - `version: 2.0.0` in frontmatter
 - Troubleshooting section: 5 scenarios (not auto-accepting, blocking unexpectedly, preferences not applying, auto-commit unexpected files, loop exhausted)
