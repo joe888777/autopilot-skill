@@ -78,7 +78,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 | Execution method | auto | **ask** | ask | auto |
 | Batch checkpoints | auto | **ask** | ask | auto |
 | Phase transitions | auto | auto | ask | auto |
-| Grep tool calls | auto | auto | ask | auto |
+| Read-only tools (Grep, Glob, Read, WebFetch) | auto | auto | ask | auto |
 | Shell cmd scoped to current dir | auto | auto | ask | auto |
 | `pyenv` commands | auto | auto | ask | auto |
 | `git init` | auto | auto | ask | auto |
