@@ -1518,6 +1518,60 @@ digraph {
 | `cat $HOME/.config/app.toml` | ask (HOME escapes cwd) |
 | `echo "Building..." && cargo build` | auto-pass (echo is transparent in compound) |
 | `printf "Done\n" && git add ./src/` | auto-pass (printf is transparent in compound) |
+| `zig build` | auto-pass (cwd-scoped Zig build) |
+| `zig test ./src/main.zig` | auto-pass (cwd-scoped) |
+| `zig fmt ./src` | auto-pass (cwd-scoped) |
+| `bazel build //...` | auto-pass (cwd-scoped build) |
+| `bazel test //...` | auto-pass (cwd-scoped tests) |
+| `bazel query //...` | auto-pass (read-only query) |
+| `bazel clean` | auto-pass (removes local build outputs) |
+| `nix build .#mypackage` | auto-pass (local flake build) |
+| `nix develop` | auto-pass (dev shell, no system writes) |
+| `nix-env -i hello` | ask (installs to user Nix profile — outside cwd) |
+| `bun ./server.ts` | auto-pass (runs local file, cwd-scoped) |
+| `bun test` | auto-pass (cwd-scoped test runner) |
+| `bun build ./src --outdir ./dist` | auto-pass (cwd-scoped bundler) |
+| `bun x eslint ./src` | auto-pass (well-known package, cwd-scoped) |
+| `bun x unfamiliar-tool@latest` | ask (downloads and runs arbitrary package) |
+| `wrangler dev` | auto-pass (local Worker dev server) |
+| `wrangler build` | auto-pass (builds to cwd) |
+| `wrangler tail` | auto-pass (read-only live log stream) |
+| `wrangler deploy` | ask (deploys to Cloudflare — external) |
+| `stripe listen` | auto-pass (local webhook forwarder) |
+| `stripe trigger payment_intent.created` | ask (creates event on Stripe) |
+| `supabase start` | auto-pass (local Docker stack) |
+| `supabase db push` | ask (pushes schema to remote Supabase project) |
+| `vercel dev` | auto-pass (local dev server) |
+| `vercel deploy` | ask (deploys to Vercel cloud) |
+| `netlify dev` | auto-pass (local dev server) |
+| `netlify deploy` | ask (deploys to Netlify) |
+| `fly status` | auto-pass (read-only) |
+| `fly deploy` | ask (deploys to Fly.io) |
+| `pulumi preview` | auto-pass (read-only plan) |
+| `pulumi up` | ask (applies infrastructure changes) |
+| `cdk synth` | auto-pass (synthesizes CloudFormation to cwd) |
+| `cdk deploy` | ask (deploys to AWS) |
+| `ansible-playbook site.yml --check` | auto-pass (dry run) |
+| `ansible-playbook site.yml` | ask (executes on remote hosts via SSH) |
+| `flyway info` | auto-pass (read-only migration status) |
+| `flyway migrate` | ask (applies pending migrations) |
+| `http GET https://api.example.com/data` | auto-pass (read-only GET, equivalent to curl) |
+| `http POST https://api.example.com/users` | ask (creates remote resource) |
+| `http GET http://localhost:8080/health` | auto-pass (localhost GET) |
+| `gpg --verify ./release.sig` | auto-pass (read-only verification) |
+| `gpg --decrypt ./secrets.gpg` | auto-pass (local decryption, no remote) |
+| `gpg --recv-keys 0xABCD1234` | ask (contacts keyserver — network operation) |
+| `crontab -l` | auto-pass (read-only) |
+| `crontab -e` | ask (modifies system cron) |
+| `ssh-keyscan github.com` | auto-pass (stdout-only fingerprint) |
+| `ssh-keyscan github.com >> ~/.ssh/known_hosts` | ask (writes outside cwd) |
+| `mongosh localhost:27017/mydb --eval "db.users.find()"` | auto-pass (read-only local query) |
+| `mongosh localhost:27017/mydb --eval "db.dropDatabase()"` | ask (destructive) |
+| `kafka-topics.sh --list --bootstrap-server localhost:9092` | auto-pass (read-only) |
+| `kafka-topics.sh --create --topic events --bootstrap-server localhost:9092` | ask (modifies cluster) |
+| `temporal server start-dev` | auto-pass (local dev Temporal server) |
+| `temporal workflow list` | auto-pass (read-only) |
+| `temporal workflow start --workflow-type MyWF` | ask (triggers remote execution) |
 
 ## Auto-Commit
 

@@ -176,7 +176,7 @@
 - `/hands-free recommend prune` added to commands list
 - `/hands-free log --full` noted in commands
 
-### Added (iteration 10 — batch 41–43)
+### Added (iteration 10 — batch 41–45)
 
 **IaC and cloud provisioning tools**
 - Pulumi: `preview/stack ls/stack output` → auto; `up/destroy/refresh/import` → ask
@@ -203,6 +203,33 @@
 
 **Container alternatives**
 - Podman and nerdctl: same rules as Docker equivalents (build/run/ps/inspect → auto; push/login/logout → ask)
+
+**Shell built-ins, scheduling, network, GPG (batch 44)**
+- Shell built-ins: `type/which/command -v` → auto; `source ./known` → auto, `source unknown` → ask; `exec` → classify by inner cmd
+- `mapfile/readarray` (cwd file) → auto; `coproc` → classify by cmd; `declare -x` → auto
+- Scheduling: `crontab -l/at -l` → auto; `crontab -e/at` → ask; `atrm` → ask
+- Email: `mail/sendmail/msmtp/swaks/mutt` → always ask (sends external email)
+- HTTPie (`http`/`https`): GET/download-to-cwd → auto; POST/PUT/PATCH/DELETE → ask
+- rclone: ls/download-to-cwd → auto; upload/sync-to-remote/delete → ask
+- s5cmd: ls/download → auto; upload → ask
+- Cloudflare Workers (wrangler): dev/build/tail → auto; deploy/secrets/kv-put/login → ask
+- GPG: verify/decrypt/sign/list/export → auto; recv-keys/send-keys/gen-key → ask
+- wget: single-file to cwd → auto; recursive `-r` → ask
+- Temporal CLI: list/describe/server start-dev → auto; execute/start/terminate/cancel → ask
+
+**Specialized tools (batch 45)**
+- Elasticsearch/OpenSearch: GET/search→auto, DELETE/PUT index→ask; elasticdump export→auto, import→ask
+- Kafka CLI: `--list/--describe` → auto; `--create/--delete/producer` → ask; consumer localhost → auto
+- mongosh: local read queries → auto; write/dropDatabase → ask; mongostat/mongotop/mongoexport → auto; mongoimport → ask
+- Nix: `nix-shell/build/eval/flake check` → auto; `nix-env install/gc/nix run <URL>` → ask
+- Bazel: `build/test/query/clean/fetch/coverage` → auto; `run` (network-using) → ask
+- Zig: `build/test/fmt/cc/translate-c` → auto-pass
+- Bun runtime: `bun ./script.ts/bun test/bun build` → auto; `bun x <unfamiliar>` → ask
+- Neon CLI: `list/connection-string` → auto; `branches create/delete` → ask
+- Turso CLI: `list/show/shell` → auto; `create/destroy/replicate` → ask
+
+**Examples table expanded (batch 44–45)**
+- 55+ new examples covering Zig, Bazel, Nix, Bun runtime, Wrangler, Stripe, Supabase, Vercel, Netlify, Fly.io, Pulumi, AWS CDK, Ansible, Flyway, HTTPie, GPG, crontab, mongosh, Kafka, Temporal
 
 **Secrets detection expanded (batch 43)**
 - Platform-specific token prefixes: `dop_v1_` (DigitalOcean), `glpat-` (GitLab), `github_pat_` (new GitHub PAT), `sk_live_/rk_live_/pk_live_` (Stripe live keys), `AIza` (Google), `ya29.` (Google OAuth), `SG.` (SendGrid)
