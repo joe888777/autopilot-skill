@@ -650,6 +650,21 @@ digraph {
 | `npx jest` | auto-pass (cwd-scoped, test) |
 | `npx mocha` | auto-pass (cwd-scoped, test) |
 | `k6 run ./script.js` | auto-pass (cwd-scoped, load test) |
+| `playwright test` | auto-pass (cwd-scoped E2E test runner) |
+| `playwright test --ui` | auto-pass (cwd-scoped, launches local UI) |
+| `npx cypress run` | auto-pass (cwd-scoped E2E tests) |
+| `npx cypress open` | auto-pass (cwd-scoped, launches local GUI) |
+| `artillery run ./config.yml` | auto-pass (cwd-scoped, load test) |
+| `locust -f ./locustfile.py` | auto-pass (cwd-scoped, starts local load test UI) |
+| `hadolint ./Dockerfile` | auto-pass (cwd-scoped Dockerfile linter) |
+| `shellcheck ./scripts/run.sh` | auto-pass (cwd-scoped shell script linter) |
+| `trivy image myimage:latest` | auto-pass (scans local Docker image, read-only) |
+| `trivy fs ./` | auto-pass (cwd-scoped filesystem vulnerability scan) |
+| `go build ./...` | auto-pass (cwd-scoped Go build) |
+| `go test ./...` | auto-pass (cwd-scoped Go tests) |
+| `go mod tidy` | auto-pass (cwd-scoped, updates go.mod/go.sum) |
+| `go vet ./...` | auto-pass (cwd-scoped Go static analysis) |
+| `golangci-lint run` | auto-pass (cwd-scoped Go linter) |
 | `pnpm dlx create-next-app my-app` | auto-pass (cwd-scoped, equivalent to npx) |
 | `bunx prisma generate` | auto-pass (cwd-scoped, equivalent to npx) |
 | `bun run test` | auto-pass (cwd-scoped) |
