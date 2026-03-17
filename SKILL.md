@@ -646,6 +646,17 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `npx create-react-app ./my-app` / `npx create-next-app@latest ./my-app` → auto-pass (cwd-scoped project scaffolding)
 - `act` (run GitHub Actions locally via Docker) → auto-pass (runs CI locally, no remote state changes)
 - `circleci local execute` → auto-pass (runs CircleCI locally, no remote state changes)
+- **Monorepo task runners:**
+  - `turbo run build`, `turbo run test`, `turbo run lint`, `turbo run typecheck` → auto-pass (Turborepo runs affected packages; cwd-scoped)
+  - `turbo run deploy` → ask (deployment pipeline)
+  - `nx run app:build`, `nx run app:test`, `nx run-many --target=build` → auto-pass (Nx targets; cwd-scoped)
+  - `nx run app:deploy` → ask (deployment target)
+  - `lerna run build`, `lerna run test`, `lerna run lint` → auto-pass (Lerna; cwd-scoped)
+  - `lerna publish` → ask (publishes packages to npm registry — external)
+  - `rush build`, `rush test`, `rush lint` → auto-pass (Rush; cwd-scoped)
+  - `moon run app:build`, `moon run app:test` → auto-pass (Moon monorepo; cwd-scoped)
+  - `moonrepo check` → auto-pass (read-only health check)
+- **GitLab CLI (`glab`):** Read operations → auto-pass: `glab mr list`, `glab mr view`, `glab issue list`, `glab issue view`, `glab pipeline list`, `glab pipeline status`; Write operations → ask: `glab mr create`, `glab mr merge`, `glab mr close`, `glab issue create`, `glab pipeline run`, `glab release create`
 - `apt-get install`, `dnf install`, `yum install` → ask (system package manager, writes to system paths)
 - `systemctl start/stop/restart/enable/disable` → ask (modifies system service state); `systemctl status` → auto-pass (read-only)
 - `kill <pid>`, `pkill <name>`, `killall <name>` → ask (terminates processes — destructive)
@@ -1995,6 +2006,10 @@ digraph {
 - **Tool result prompt injection:** Hands-free guards against this but relies on the principle that approval points appear only in Claude's own generated text. Sophisticated adversarial inputs that look like genuine approval points may not always be caught.
 
 - **Complex shell aliases:** If a command is a shell alias defined in `~/.bashrc`, hands-free cannot inspect the alias definition and classifies by the alias name only. Unknown alias names are treated as cwd-scoped commands (same as any unfamiliar command name).
+
+- **Windows/WSL path handling:** The shell auto-pass rules assume Unix-style paths (`./`, `~/`, `/etc/`). In Windows Subsystem for Linux (WSL), Windows-style paths (`C:\Users\...`) in commands are treated as unknown paths and classified conservatively (ask). If using WSL and accessing Windows drives (`/mnt/c/...`), those paths are NOT considered cwd-scoped — they require user confirmation in all modes. For purely WSL-internal paths within the current working directory, standard classification applies.
+
+- **Custom MCP servers not in default list:** MCP servers built internally or installed from unlisted sources will be classified by their tool names (verb-prefix heuristic). If the tool names are ambiguous nouns, they will ask. Document your internal MCP tools in CLAUDE.md with explicit read/write overrides for consistent behavior.
 
 ---
 
