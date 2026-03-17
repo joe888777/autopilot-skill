@@ -7,7 +7,7 @@ A Claude Code skill that auto-accepts recommended options from any skill workflo
 - **Auto-accepts** recommended options at approval points (brainstorming, design, execution, checkpoints)
 - **Auto-commits** changes at natural milestones with clean git history
 - **Pauses** for destructive/irreversible actions (git push, merge, discard, force operations, rm -rf, CI/CD changes, etc.)
-- **Blocks** pipe-to-shell (`curl | bash`), privilege escalation (`chmod 777`), and secrets in commits — always, in every mode
+- **Blocks** pipe-to-shell (`curl | bash`), language-level RCE (`python -c exec`, `node -e eval`), privilege escalation (`chmod 777`), and secrets in commits — always, in every mode
 - **Review checkpoints** — structured pause-and-summarize before costly phase transitions (optional, or always-on in `partial`)
 - **Explains** decisions with `/hands-free explain` — trace why a specific auto-accept happened
 - **Learns** your preferences over time — tracks choices, builds confidence, adapts to you
@@ -33,23 +33,26 @@ cp -r autopilot-skill ~/.claude/skills/hands-free
 ## Usage
 
 ```
-/hands-free              # Full auto-accept (default)
-/hands-free full         # Same as above
+/hands-free              # Activate full mode; if already active, show status
+/hands-free full         # Full mode — auto-accept all non-destructive points
 /hands-free partial      # Auto-accept design, pause at execution
-/hands-free off          # Back to normal
-/hands-free crazy-workspace       # Max autonomy within ./
-/hands-free auto-commit on        # Auto-commit at natural milestones
-/hands-free auto-commit off       # Disable auto-commit (default)
-/hands-free review-checkpoints on # Pause at phase transitions for review
-/hands-free learning <h/m/l>      # Set learning sensitivity (high/medium/low)
-/hands-free dry-run               # Preview what would be auto-accepted
-/hands-free pause                 # Temporarily suspend auto-accept (mode preserved)
-/hands-free resume                # Resume auto-accept after pause
-/hands-free explain               # Explain why the last auto-accept decision was made
-/hands-free reset                 # Clear all learned preferences (requires confirmation)
-/hands-free status                # Show current mode + all settings
-/hands-free recommend             # Suggest optimal settings
-/hands-free log                   # Show session decisions
+/hands-free off          # Back to normal (learning still active)
+/hands-free crazy-workspace           # Max autonomy within ./
+/hands-free auto-commit on            # Auto-commit at natural milestones
+/hands-free auto-commit off           # Disable auto-commit (default)
+/hands-free review-checkpoints on     # Pause at phase transitions for review
+/hands-free review-checkpoints off    # Skip phase-transition pauses (default in full)
+/hands-free learning <h/m/l>          # Set learning sensitivity (high/medium/low)
+/hands-free learning                  # Show current learning level
+/hands-free dry-run                   # Preview what would be auto-accepted
+/hands-free pause                     # Temporarily suspend auto-accept (mode preserved)
+/hands-free resume                    # Resume auto-accept after pause
+/hands-free explain                   # Explain why the last auto-accept or hard-stop decision was made
+/hands-free reset                     # Clear all learned preferences (requires confirmation)
+/hands-free status                    # Show current mode + all settings
+/hands-free recommend                 # Suggest optimal settings
+/hands-free recommend promote <action> # Promote a standard hard-stop action to auto-accept
+/hands-free log                       # Show session decisions
 ```
 
 ### Modes
@@ -124,12 +127,24 @@ Would auto-accept (if full mode enabled):
 
 Would PAUSE for (always, all modes):
   git push                            HARD STOP
-  curl | bash                         HARD STOP
+  curl | bash / source <(curl)        HARD STOP
+  python -c exec / node -e eval       HARD STOP
   chmod 777                           HARD STOP
   Secrets in staged files             HARD STOP
   rm -rf *                            HARD STOP
 
 To enable: /hands-free full
+```
+
+### Persisting settings across sessions
+
+Mode resets to `off` at the start of each conversation. To auto-activate, add to your project's CLAUDE.md:
+
+```markdown
+# hands-free overrides
+- Default mode: full
+- Auto-commit: on
+- Learning: high
 ```
 
 ## Ralph Loop + Superpowers Example
@@ -310,6 +325,12 @@ Preferences store skill names and option choices (e.g., "writing-plans → subag
 
 **Can I disable learning for one session without resetting preferences?**
 Use `/hands-free learning l` (low) for the session — it tracks but only auto-applies after 7x. Or use `/hands-free off` to observe without any auto-applying.
+
+**Why did hands-free block a `python -c` or `node -e` command?**
+If the command fetches content from a URL and executes it (e.g., `python -c "exec(urllib.request.urlopen('...').read())"`), it's treated as a language-level RCE pattern — equivalent to `curl | bash`. Download the script to a local file first, review it, then run it.
+
+**Does the mode persist across conversations?**
+No — mode resets to `off` at the start of each new conversation. Add a `# hands-free overrides` section to your project's CLAUDE.md with `Default mode: full` to auto-activate it each session.
 
 ## Contributing
 
