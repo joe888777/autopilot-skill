@@ -1,7 +1,7 @@
 ---
 name: hands-free
-version: 2.1.0
-description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE, privilege escalation, global installs, and secrets detection in all modes.
+version: 2.2.0
+description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (including deno run URL, perl), privilege escalation, global installs, secrets detection, and remote ops (ssh, scp, terraform) in all modes.
 ---
 
 # Hands-Free

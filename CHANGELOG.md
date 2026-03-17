@@ -1,5 +1,46 @@
 # Changelog
 
+## [2.2.0] — 2026-03-17
+
+### Added (iteration 5)
+
+**Security**
+- `deno run https://...` → universal HARD STOP (language-level RCE — Deno natively fetches and runs URLs)
+- `perl` fetch-then-eval patterns → universal HARD STOP (added to language RCE list)
+- `docker compose push` → shared/remote state hard stop (pushes to external registry)
+- `terraform apply`, `terraform destroy` → shared/remote state hard stop (modifies external infrastructure)
+- `ssh`, `scp`, `rsync` to remote hosts → ask (remote machine access, not within `./`)
+
+**Secrets Detection**
+- Filename patterns: `.npmrc` (npm auth tokens), `*.cer`, `*.der`, `*.crt` (certificate files)
+- Content signals: `database_url=`, `signing_key=` assignment patterns
+- Content signals: hardcoded `Authorization: Bearer ` and `X-Api-Key:` HTTP headers in source files
+
+**Shell Auto-Pass**
+- `git tag <name>` → always-auto-pass (local tag creation, non-destructive)
+- `git commit -m "..."` (non-amend, no `-a` flag) → always-auto-pass
+- `git worktree add <path>` → always-auto-pass; `git worktree remove` is NOT auto-pass
+- `git submodule update --init [--recursive]` → always-auto-pass
+- `git submodule add <url>` → auto-pass in full, ask in partial (execution-type)
+- `docker compose up/build/down/run` → auto-pass; `docker compose push` → ask
+- `bun install` → auto-pass (equivalent to npm install)
+- `make test`, `make build` → auto-pass; `make install` → ask (may write to system paths)
+- `pre-commit run --all-files` → auto-pass (runs hooks locally)
+- `terraform plan` → auto-pass (read-only dry run)
+
+**Rules**
+- Env-var prefix rule: `KEY=value cmd` classified by underlying `cmd`, not by the env var
+- Execution-type vs design-type for custom skills in partial mode: explicit classification criteria
+- Remote DB example fix: `psql postgresql://prod-db/mydb -c "DROP TABLE"` → ask (not HARD STOP; consistent with remote DB rule)
+
+**Mode Behavior Table**
+- Added "Language RCE" row (separate from curl|bash pipe-to-shell row)
+
+**Documentation**
+- README FAQ: 3 new entries (docker compose push vs up, Claude Code permission system interaction, partial mode execution-type)
+- Troubleshooting: `deno run` local vs URL clarification; terraform apply/destroy
+- README security table updated with deno run URL
+
 ## [2.1.0] — 2026-03-17
 
 ### Added (iteration 4 — continued from 2.0.0)
