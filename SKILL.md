@@ -193,6 +193,16 @@ In `full`, `partial`, and `crazy-workspace` modes, the following Claude Code too
 
 These tools cannot write to disk, run code, or make side effects, so they are safe to auto-pass in all active modes. In `off` mode, they require user approval like any other tool.
 
+## Write-Capable Tool Rules
+
+**Edit** and **Write** tools (file modification) follow the same rules as shell commands scoped to the workspace:
+
+- **In-workspace file edits** (Edit, Write to files within `./`) → auto-approved in full/partial/crazy-workspace; ask in off mode
+- **NotebookEdit** (Jupyter notebook edits) → same as Edit/Write; auto-approved if scoped to `./`
+- **Secrets check applies**: before calling Edit or Write, scan if the content being written contains secrets signal patterns; if so, announce and pause
+
+Note: Edit/Write to paths outside `./` (e.g., system config files, `~/.ssh/`) follow the path-escaping rules and require manual approval in all modes.
+
 ## Shell Command Auto-Pass Rules
 
 In `full`, `partial`, and `crazy-workspace` modes, auto-approve Bash/shell tool calls without asking when **any** of these conditions are met:
