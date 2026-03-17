@@ -299,7 +299,15 @@ These tools cannot write to disk, run code, or make side effects, so they are sa
 
 - **In-workspace file edits** (Edit, Write to files within `./`) → auto-approved in full/partial/crazy-workspace; ask in off mode
 - **NotebookEdit** (Jupyter notebook edits) → same as Edit/Write; auto-approved if scoped to `./`
-- **Secrets check applies**: before calling Edit or Write, scan if the content being written contains secrets signal patterns; if so, announce and pause
+- **Secrets check applies**: before calling Edit or Write, scan if the content being written contains secrets signal patterns; if so, announce and pause. Use the same filename patterns and content signals as the pre-commit secrets scan.
+
+**Exceptions to the Write-time secrets check:**
+- `.env.example`, `*.example`, `*.sample`, `*.template` — these are documentation/template files with placeholder values; do NOT block these
+- Test fixture files (files under `tests/`, `spec/`, `__tests__/`, `fixtures/`) containing clearly fake values (e.g., `sk-fake123`, `ghp_test_token`) — these are intentional test data
+- Files with encrypted/hashed values (the content looks like a hash rather than a raw secret, e.g., a bcrypt hash in a test fixture)
+- If uncertain, announce the potential match and ask the user to confirm before writing
+
+**Multi-file edit secrets check:** When Claude is editing or writing multiple files simultaneously, check each file independently. A secret detected in one file blocks that file's write but does NOT block the other files. Announce: `[security] Pausing write to [filename] — possible secret detected. Continuing with other files.`
 
 Note: Edit/Write to paths outside `./` (e.g., system config files, `~/.ssh/`) follow the path-escaping rules and require manual approval in all modes.
 
@@ -1387,6 +1395,21 @@ Hands-free is designed to work with ralph-loop (`/ralph-loop`) and superpowers t
 Check for `.claude/.ralph-loop.local.md` at the start of each iteration. If present, hands-free is loop-aware.
 
 ### Loop-Aware Behavior
+
+**Announce iteration start.** At the beginning of each iteration, print a brief one-line status:
+```
+[hands-free] Iteration 3/100 — prior work: 5 commits, tests: 8 passing / 2 failing
+[hands-free] Iteration 1/15 — no prior commits
+```
+For time-based promises, include remaining time:
+```
+[hands-free] Iteration 7 — time remaining until promise: ~2h 14m
+```
+
+**Build state health check.** Before routing to any superpowers skill, check if the project compiles/builds:
+- If `cargo build` (Rust) or equivalent fails with compilation errors → route to systematic-debugging first, not executing-plans
+- If build passes but tests fail → route to systematic-debugging
+- If build passes and tests pass → proceed with normal phase routing
 
 **Skip repeated brainstorming.** If the current iteration's task matches the previous iteration (same prompt), do NOT re-brainstorm from scratch. Instead:
 - Iteration 1: Full brainstorming → pick recommended → design → plan
