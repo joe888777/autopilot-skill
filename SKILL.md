@@ -47,7 +47,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 /hands-free explain      # explain why the last auto-accept or hard-stop decision was made
 /hands-free recommend    # show recommended settings based on usage
 /hands-free reset        # clear all learned preferences (requires confirmation)
-/hands-free log          # show session decisions
+/hands-free log          # show session decisions (recent events; use --full for complete log)
 /hands-free status       # show current mode + all settings
 ```
 
@@ -308,6 +308,7 @@ In `full`, `partial`, and `crazy-workspace` modes, auto-approve Bash/shell tool 
 
 Note: `git restore <file>` (without `--staged`) DISCARDS local changes and is NOT auto-pass — ask first.
 Note: `git clone <url>` downloads a remote repo but writes only within cwd, making it cwd-scoped → auto-pass. No code is executed during cloning.
+Note: `git commit --amend` (even without `-a`) modifies an existing commit — ask in all modes. This is true even if the commit hasn't been pushed yet.
 Note: `git tag -d <name>` (delete) and `git push --tags` are NOT auto-pass — deletion is destructive, push is remote.
 Note: `git worktree remove <path>` is NOT auto-pass — destructive (removes the worktree directory).
 
@@ -404,6 +405,9 @@ digraph {
 | `tsc --watch` | auto-pass (cwd-scoped, TypeScript watch) |
 | `npx eslint src/` | auto-pass (cwd-scoped, lint) |
 | `npx vitest run` | auto-pass (cwd-scoped, test) |
+| `npx jest` | auto-pass (cwd-scoped, test) |
+| `npx mocha` | auto-pass (cwd-scoped, test) |
+| `k6 run ./script.js` | auto-pass (cwd-scoped, load test) |
 | `pnpm dlx create-next-app my-app` | auto-pass (cwd-scoped, equivalent to npx) |
 | `bunx prisma generate` | auto-pass (cwd-scoped, equivalent to npx) |
 | `bun run test` | auto-pass (cwd-scoped) |
@@ -1185,6 +1189,10 @@ Auto-commit uses `git add <specific files>` per task — it should never add fil
 ### "Hands-free is asking about `terraform apply` / `terraform destroy`"
 
 Both target external infrastructure and are treated as shared/remote state hard stops. `terraform plan` is read-only and auto-passes. To proceed with apply/destroy, confirm the prompt. In crazy-workspace, these still ask because external infrastructure is not within `./`.
+
+### "Crazy-workspace is active but git push is being blocked"
+
+Check that you're using `git push` (not `git push --force-with-lease` to a protected branch — some repos have branch protection rules enforced on the remote). Crazy-workspace auto-approves the LOCAL decision to push, but the remote server can still reject it. If the rejection is a non-protected branch, confirm the push manually and check network/credentials. If a branch protection rule blocked it, the push failed at the remote — this is expected.
 
 ### "The loop stopped at max-iterations without completing"
 
