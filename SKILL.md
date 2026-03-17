@@ -832,6 +832,8 @@ Hands-Free Session Log (full, learning: high)
 
 Events logged: `[brainstorming]`, `[writing-plans]`, `[executing-plans]`, `[verification]`, `[finishing-branch]`, `[auto-commit]`, `[review-checkpoint]`, `[systematic-debugging]`, `[hard-stop]`, `[user-override]`.
 
+**Log size:** For long sessions (ralph-loop with many iterations), the log may have hundreds of entries. When `/hands-free log` is called with > 50 events, show: the first 5 events (session start context), then `[... N events omitted ...]`, then the last 20 events (most recent). Include a total count: `(N total events this session)`. Pass `--full` to see the complete log.
+
 ## `/hands-free explain`
 
 When invoked, explain the reasoning behind the most recent auto-accept **or hard stop** decision:
@@ -898,6 +900,10 @@ When paused, announce: `[hands-free] Paused — all approval points will ask unt
 When resumed, announce: `[hands-free] Resumed — back to [mode] mode`
 
 Pause state is reflected in `/hands-free status` as `Paused: yes`.
+
+**Mode switch while paused:** If the user switches mode (`/hands-free full`, `/hands-free partial`, etc.) while paused, the new mode is stored as the "resume-to" mode and the pause state persists. Announce: `[hands-free] Mode updated to [new-mode] — still paused. Use /hands-free resume to re-activate with [new-mode].`
+
+**`/hands-free resume` when not paused:** Announce: `[hands-free] Already active — not paused. Use /hands-free pause to suspend.`
 
 Pausing does NOT affect hard stops — they remain blocked regardless.
 
@@ -1040,7 +1046,13 @@ Recommend: narrow the scope, address a different failure, or pause and review.
 Pausing for user input — type 'continue' to proceed anyway or describe a new approach.
 ```
 
-A stall is defined as: the same set of failing tests OR the same set of files modified OR no new commits in the last 3 iterations.
+A stall is defined as any of:
+- The same set of failing tests across the last 3 iterations (identical test names failing)
+- The same set of files modified across the last 3 iterations (no new files touched)
+- No new commits (with or without `[ralph #N]` tags) in the last 3 iterations
+- The same error message or exception type appearing in the last 3 iterations without a different fix being attempted
+
+**Partial progress is NOT a stall:** If each iteration fixes at least one previously-failing test (even if new failures appear), it's not a stall — progress is being made. The stall warning fires only when ZERO improvement is detectable across 3 consecutive iterations.
 
 ## Crazy-Workspace Mode
 
