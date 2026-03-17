@@ -379,6 +379,27 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `kubectl exec -it <pod> -- bash` → ask (opens a shell in a remote Kubernetes pod)
 - `kubectl apply -f ./k8s/` → auto-pass in full (applies local manifests; cwd-scoped); ask in partial (deploys to cluster — execution-type)
 - `kubectl delete` → ask (destructive cluster operation)
+- `docker cp <container>:/path ./local` → auto-pass (copies file out of container to cwd — read-only for the container)
+- `docker cp ./local <container>:/path` → auto-pass in full (copies file into container — local Docker only, no remote side effects)
+- `docker logs <container>` / `docker inspect <container>` → auto-pass (read-only container inspection)
+- `docker pull <image>` → auto-pass (downloads image to local Docker daemon; no code executed, no cwd write)
+- `docker run --rm <image> <cmd>` → auto-pass in full if image is local or well-known (`node`, `python`, `rust`, `ubuntu`, etc.); ask if image name is unfamiliar (unknown image may contain arbitrary code)
+- `docker buildx build` → auto-pass (cwd-scoped, extends `docker build`)
+- `redis-cli get <key>`, `redis-cli keys <pattern>`, `redis-cli info`, `redis-cli monitor` → auto-pass if connecting to localhost (read-only local Redis); ask if connecting to a remote Redis host
+- `redis-cli set <key> <value>`, `redis-cli del <key>`, `redis-cli flushdb`, `redis-cli flushall` → ask (mutates data; `flushall` is especially destructive)
+- `pg_isready` → auto-pass (read-only health check for local PostgreSQL)
+- `hatch build` / `hatch run <script>` / `hatch env create` → auto-pass (cwd-scoped, Python Hatch build tool)
+- `python -m build` → auto-pass (cwd-scoped, PyPA build — produces dist/ artifacts)
+- `flit build` / `flit install --symlink` → auto-pass (cwd-scoped, Python Flit build)
+- `cargo generate --git <url>` → ask (downloads and executes a template from a URL — remote code); `cargo generate <local-template>` → auto-pass (uses local template)
+- `cargo init` / `cargo new <name>` → auto-pass (creates a new Rust project in cwd)
+- `direnv allow` → auto-pass (enables loading of the local `.envrc` into the shell — only loads env vars, no code execution)
+- `tee ./output.log` when receiving piped cwd input → auto-pass (cwd-scoped output); `tee /etc/...` → ask (writes outside cwd)
+- `cmake -B build -S .` / `cmake --build build` → auto-pass (cwd-scoped build system configuration and compilation)
+- `ninja -C build` → auto-pass (cwd-scoped build runner)
+- `meson setup build` / `meson compile -C build` → auto-pass (cwd-scoped build)
+- `make clean` / `make all` / `make lint` / `make fmt` / `make check` → auto-pass (cwd-scoped, common Makefile targets)
+- `make uninstall` → ask (may write to system paths)
 - `docker exec -it <container> bash` → auto-pass (executing in a locally-running container; stays within local environment)
 - `nc`/`netcat` connecting to a remote host → ask; `nc -l` listening locally → auto-pass (local, user can disconnect)
 - `find . -exec rm` / `find . -exec rm -rf {} \;` → ask (bulk file deletion, potentially recursive)
@@ -488,6 +509,32 @@ digraph {
 | `docker compose down` | auto-pass (cwd-scoped, stops containers) |
 | `docker compose run <service> cmd` | auto-pass (cwd-scoped) |
 | `docker compose push` | ask (pushes images to external registry) |
+| `docker pull python:3.12` | auto-pass (downloads to local daemon) |
+| `docker logs mycontainer` | auto-pass (read-only) |
+| `docker inspect mycontainer` | auto-pass (read-only) |
+| `docker cp mycontainer:/app/output.json ./` | auto-pass (copies to cwd) |
+| `docker cp ./config.toml mycontainer:/app/` | auto-pass (local copy into local container) |
+| `docker run --rm python:3.12 python --version` | auto-pass (well-known image, read-only check) |
+| `docker buildx build --platform linux/amd64 -t myimage .` | auto-pass (cwd-scoped build) |
+| `redis-cli get mykey` | auto-pass (localhost, read-only) |
+| `redis-cli keys '*'` | auto-pass (localhost, read-only inspection) |
+| `redis-cli flushall` | ask (destructive — wipes all Redis data) |
+| `pg_isready -h localhost` | auto-pass (read-only health check) |
+| `hatch build` | auto-pass (cwd-scoped) |
+| `hatch run test` | auto-pass (cwd-scoped) |
+| `python -m build` | auto-pass (cwd-scoped, builds dist/) |
+| `flit build` | auto-pass (cwd-scoped) |
+| `cargo init` | auto-pass (initializes Rust project in cwd) |
+| `cargo new mylib --lib` | auto-pass (creates new library crate) |
+| `cargo generate --git https://github.com/...` | ask (remote template — downloads and executes) |
+| `direnv allow` | auto-pass (loads local .envrc env vars) |
+| `cmake -B build -S .` | auto-pass (cwd-scoped build config) |
+| `cmake --build build` | auto-pass (cwd-scoped compilation) |
+| `ninja -C build` | auto-pass (cwd-scoped build) |
+| `make clean` | auto-pass (cwd-scoped) |
+| `make all` | auto-pass (cwd-scoped) |
+| `make lint` | auto-pass (cwd-scoped) |
+| `make uninstall` | ask (may write to system paths) |
 | `make test` | auto-pass (cwd-scoped) |
 | `make build` | auto-pass (cwd-scoped) |
 | `make install` | ask (may write to /usr/local or other system paths) |
@@ -1343,6 +1390,22 @@ Both target external infrastructure and are treated as shared/remote state hard 
 
 Check that you're using `git push` (not `git push --force-with-lease` to a protected branch — some repos have branch protection rules enforced on the remote). Crazy-workspace auto-approves the LOCAL decision to push, but the remote server can still reject it. If the rejection is a non-protected branch, confirm the push manually and check network/credentials. If a branch protection rule blocked it, the push failed at the remote — this is expected.
 
+### "Auto-commit isn't running even though changes exist"
+
+Check for less-obvious causes:
+- `git status` shows changes in a detached HEAD state — auto-commit skips because commits in detached HEAD can be lost. Run `git checkout -b <branchname>` to create a branch first.
+- The file was created outside the workspace (`/tmp/`, `~/.config/`) and is not tracked in this repo
+- All changed files are listed in `.gitignore`
+- No `git init` was run — the directory is not a git repo
+
+### "Redis commands are being blocked unexpectedly"
+
+`redis-cli` commands connecting to a remote host trigger an ask in all modes. If you're using Redis locally with a non-default hostname (e.g., `redis-cli -h redis.local ...`), it will ask. To suppress, add a CLAUDE.md override:
+```markdown
+# hands-free overrides
+- redis-cli connecting to redis.local is local dev — auto-pass
+```
+
 ### "The loop stopped at max-iterations without completing"
 
 Options:
@@ -1452,3 +1515,7 @@ digraph {
 | "git add -A is faster" | Auto-commit NEVER uses `git add -A` — only specific files by name |
 | "deno run script.ts is local, it's fine" | `deno run ./script.ts` is fine; `deno run https://...` is HARD STOP |
 | "This curl POST is read-only" | POST/PUT/DELETE mutates remote state — ask first |
+| "redis-cli flushall on localhost is harmless" | Deletes all Redis data — ask regardless of host |
+| "cargo generate with a GitHub URL is like cargo new" | Downloads and executes remote code — ask first |
+| "docker run --rm is safe because it's ephemeral" | Unknown images execute arbitrary code — ask for unfamiliar images |
+| "xargs rm is just a list" | Bulk deletion — classified as ask, same as find -exec rm |
