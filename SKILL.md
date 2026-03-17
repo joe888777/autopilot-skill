@@ -311,7 +311,18 @@ Never override this check, even in crazy-workspace mode. Secrets detection is a 
 
 Preferences stored in `~/.claude/skills/hands-free/preferences.md`. Records choices whether hands-free is on or off.
 
-**Scoping:** Preferences are global across all projects by default. They capture patterns like "I always choose subagent-driven" which generalize across codebases. Project-specific quirks (e.g., "always use X library in this repo") belong in CLAUDE.md, not in preferences.
+**Scoping:** Preferences are global across all projects by default. They capture patterns like "I always choose subagent-driven" which generalize across codebases.
+
+**Project-level overrides via CLAUDE.md:** For repo-specific rules, add to the project's CLAUDE.md:
+
+```markdown
+# hands-free overrides
+- Always pause before auto-committing in this repo (production codebase)
+- Never auto-accept git push, even with crazy-workspace enabled
+- Shell commands containing `psql postgresql://prod` must always ask
+```
+
+Claude reads CLAUDE.md at the start of each session. These instructions take precedence over global preferences from `preferences.md`.
 
 **What NOT to record:**
 - One-off decisions that are clearly context-specific to the current task
