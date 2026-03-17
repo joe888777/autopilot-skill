@@ -61,8 +61,9 @@ cp -r autopilot-skill ~/.claude/skills/hands-free
 | Batch checkpoints | auto | **ask** | ask | auto |
 | Shell cmds scoped to cwd / pyenv / git add | auto | auto | ask | auto |
 | Destructive actions (within workspace) | **ask** | **ask** | ask | auto |
-| Review checkpoint (before execution) | skip | **HARD STOP** | **HARD STOP** | skip |
-| Review checkpoint (before push/merge) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| Review checkpoint — optional (brainstorming→plan, etc.) | skip | **HARD STOP** | **HARD STOP** | skip |
+| Review checkpoint — mandatory (before execution) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| Review checkpoint — mandatory (before push/merge) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Git push | ask | ask | ask | auto |
 | `curl \| bash` / pipe-to-shell | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `chmod 777` / privilege escalation | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |

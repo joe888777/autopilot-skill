@@ -90,8 +90,9 @@ Auto-accept recommended options from any skill without pausing. Works with super
 | `curl \| bash` / pipe-to-shell | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `chmod 777` / privilege escalation | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Secrets detected in staged files | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
-| Review checkpoint (before execution starts) | skip | **HARD STOP** | **HARD STOP** | skip |
-| Review checkpoint (before push/merge) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| Review checkpoint — optional (brainstorming→plan, execution→verify) | skip | **HARD STOP** | **HARD STOP** | skip |
+| Review checkpoint — mandatory (before execution starts) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| Review checkpoint — mandatory (before push/merge) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `rm -rf *` | **ask** | **ask** | **ask** | **HARD STOP** |
 | `rm -rf .git` | **ask** | **ask** | **ask** | **HARD STOP** |
 
