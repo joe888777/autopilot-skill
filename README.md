@@ -471,6 +471,24 @@ Shell script content scanning checks for hard stop patterns in the actual code l
 **Can I use `git pull --rebase` automatically?**
 Yes. In full mode, `git pull`, `git pull --rebase`, and `git pull --ff-only` all auto-pass (they're local operations that update your working branch). In partial mode, `git pull` and `git pull --rebase` ask (they modify working state — execution-type decision), but `git pull --ff-only` always auto-passes (safe fast-forward that can't rewrite history).
 
+**How does hands-free classify pipeline commands like `curl URL | jq '.'`?**
+Pipelines are classified by their most restrictive stage. `curl URL | jq '.'` asks because `curl URL` escapes cwd (fetches remote). `cat ./data.json | jq '.'` auto-passes (both cwd-scoped). The exception: any pipeline ending in `| bash` or `| sh` is always a HARD STOP (pipe-to-shell). Use `/hands-free check curl URL | jq '.'` to see the breakdown.
+
+**How do I work with monorepo tools like Turborepo or Nx?**
+Common targets auto-pass: `turbo run build`, `turbo run test`, `turbo run lint`, `nx run app:build`, `nx run-many --target=build`, `lerna run test`. Deployment targets ask: `turbo run deploy`, `nx run app:deploy`, `lerna publish`. This matches the same known-safe/ask distinction as `npm run`.
+
+**What happens when a shell variable in a command is blocked?**
+Commands with `$VAR` in path arguments are classified conservatively when the variable's value is unknown (`rm -rf $BUILD_DIR` → ask). If you know the variable always resolves to a cwd path, restructure using an explicit relative path (`rm -rf ./build`), or add a CLAUDE.md override. Use `/hands-free check rm -rf $BUILD_DIR` to see why it's blocked.
+
+**What if my preferences.md has conflicting rules?**
+Higher-confidence rules win (5x high > 3x medium). If equal confidence, the more recent rule wins. A conflict is announced once per session: `[hands-free] Conflicting preferences for [decision] — using [winning-option]`. Run `/hands-free recommend prune` to clean up the conflict.
+
+**How does hands-free know what mode to start in?**
+`off` by default. If the project has a CLAUDE.md with `Default mode: full`, that mode activates at session start. Any `/hands-free <mode>` command during the session immediately overrides CLAUDE.md — the user's live command always wins. Project security rules in CLAUDE.md (custom HARD STOP overrides) cannot be overridden.
+
+**Does hands-free support GitLab, Bitbucket, or Azure DevOps CLI tools?**
+Yes for GitLab (`glab`): read operations (`glab mr list`, `glab issue view`, etc.) auto-pass; write operations (`glab mr create`, `glab pipeline run`, etc.) ask. For Bitbucket and Azure DevOps CLI tools, classification uses the MCP naming heuristic (verb-prefix) since they're less common. Add CLAUDE.md overrides for project-specific rules.
+
 ## Contributing
 
 PRs welcome. If you find an approval point that hands-free doesn't handle well, open an issue.
