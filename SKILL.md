@@ -810,12 +810,14 @@ Two tiers of hard stops:
 - Any operation targeting paths outside `./`
 - `rm -rf *` and `rm -rf .git` — even within `./`, these are indiscriminate
 
-**Shared/remote state** *(full/partial/off only — crazy-workspace overrides within target dir)*
+**Shared/remote state** *(standard — crazy-workspace does NOT override these; external services are not "within ./")*
 - Sending messages (Slack, email, GitHub comments)
 - Creating, closing, or commenting on PRs or issues
 - Modifying CI/CD pipelines
 - Modifying shared infrastructure or permissions
 - Any other action visible to others or affecting external systems
+
+Note: CI/CD pipeline file edits (e.g., `.github/workflows/`) are local files within `./` and ARE auto-approved in crazy-workspace. But triggering a deployment or sending an API call to an external service is NOT within `./` and is always a hard stop.
 
 ```dot
 digraph {
