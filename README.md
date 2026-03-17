@@ -287,6 +287,26 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 - Preference staleness rules (confidence downgrades on repeated contradictions)
 - Troubleshooting guide for common issues
 
+## FAQ
+
+**Does hands-free work with any Claude Code skill, not just superpowers?**
+Yes. It recognizes approval point patterns (option lists, "Shall I proceed?" prompts, numbered choices) in any skill.
+
+**Will it auto-accept things I don't want auto-accepted?**
+Use `/hands-free dry-run` before enabling to see what would be auto-accepted. Use `/hands-free pause` to temporarily suspend auto-accept. Hard stops (pipe-to-shell, chmod 777, secrets) can never be auto-accepted.
+
+**What if I change my mind about a learned preference?**
+Override it manually — the staleness system will downgrade confidence after 2 overrides and replace the rule after 3. Or use `/hands-free reset` to clear all at once.
+
+**Is it safe to use crazy-workspace on a shared repo?**
+No. Crazy-workspace auto-approves git push, force push, and destructive resets within `./`. Use it only on personal sandboxes or throwaway repos.
+
+**Does hands-free store sensitive data in preferences.md?**
+Preferences store skill names and option choices (e.g., "writing-plans → subagent-driven"). They never contain code, secrets, or file contents. Secrets are explicitly blocked from being recorded.
+
+**Can I disable learning for one session without resetting preferences?**
+Use `/hands-free learning l` (low) for the session — it tracks but only auto-applies after 7x. Or use `/hands-free off` to observe without any auto-applying.
+
 ## Contributing
 
 PRs welcome. If you find an approval point that hands-free doesn't handle well, open an issue.
