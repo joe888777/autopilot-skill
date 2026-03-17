@@ -15,7 +15,8 @@ A Claude Code skill that auto-accepts recommended options from any skill workflo
 - **Learns** your preferences over time — tracks choices, builds confidence, adapts to you
 - **Ralph-loop integration** — works with ralph-loop + superpowers for fully autonomous iterative development
 - **Four modes** — `full`, `partial`, `off`, and `crazy-workspace` for different levels of autonomy
-- **Comprehensive tool coverage** — 200+ shell command patterns pre-classified for Python (uv/poetry/pipenv), Rust (cargo nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker, Redis, PostgreSQL, SQLite, and more
+- **Comprehensive tool coverage** — 350+ shell command patterns pre-classified for Python (uv/poetry/pipenv), Rust (cargo nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker, Redis, PostgreSQL, SQLite, Go, Java/JVM (Maven/Gradle), Ruby (bundle/mix), Elixir, Kubernetes (kubectl/Helm/Skaffold), cloud CLIs (gcloud/az/AWS), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Railway/Fly.io), and more
+- **CLAUDE.md Override Reference** — persistent per-project overrides for commands, tools, and patterns; user-global overrides via `~/.claude/CLAUDE.md`
 
 ## Install
 
@@ -264,7 +265,7 @@ Hands-free enforces **universal hard stops** in ALL modes, including `crazy-work
 | `bash $(curl URL)` — subshell fetching remote content | Equivalent to pipe-to-shell; inner subshell is classified independently |
 | Writing a script that embeds `curl \| bash` (Edit/Write tool) | Shell script content is scanned before writing — hard stop patterns in script content block the write |
 | `chmod 777`, `chmod a+rwx` | World-writable permissions — any user can modify the file |
-| Secrets in staged files | Prevent accidentally committing API keys, private keys, tokens (expanded patterns: Slack tokens, connection string passwords, TOTP/SMTP/FTP secrets) |
+| Secrets in staged files | Prevent accidentally committing API keys, private keys, tokens (expanded: platform-specific prefixes for Stripe/GitLab/DigitalOcean/SendGrid, JWT tokens, HashiCorp Vault tokens, connection string passwords, false-positive reduction for test dirs and placeholder values) |
 | `rm -rf *` | Indiscriminate wipe — deletes everything in scope |
 | `rm -rf .git` | Destroys version history — unrecoverable without a backup |
 
@@ -302,10 +303,12 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 - Process substitution `<(cmd)` rule: `diff <(git show HEAD:file) ./file` → auto-pass; `source <(curl URL)` → HARD STOP
 - Shell variable expansion in paths: unknown vars → ask (conservative); known escape-list vars → ask; clearly local vars → auto-pass
 - Sensitive env-var name detection: `API_KEY=live-secret cmd` announces risk (appears in `ps aux`)
-- Secrets expanded: Slack tokens (`xoxb-`, `xoxp-`), PGP key marker, `client_secret=`, `smtp_password=`, connection string passwords
+- Secrets detection expanded significantly: platform-specific prefixes (`dop_v1_` DigitalOcean, `glpat-` GitLab, `github_pat_` new PAT format, `sk_live_/rk_live_/pk_live_` Stripe live keys, `AIza` Google, `ya29.` Google OAuth, `SG.` SendGrid, `hvs.` HashiCorp Vault), JWT token detection (`eyJ` literal in non-test code), additional assignment patterns (`jwt_secret=`, `webhook_secret=`, `master_key=`), false positive reduction for test dirs, comments, and placeholder values
 - Complex shell construct rule: `if/for/while/case` — classified by most restrictive branch
 - Heredoc pattern classification: local DB heredoc → auto-pass; remote DB or POST heredoc → ask
 - Preference conflict resolution: higher-confidence rule wins; conflict announced once
+
+**CLAUDE.md Override Reference:** Comprehensive per-project override syntax covering persistent settings, command/tool/pattern overrides, precedence rules, and scope (project vs user-global `~/.claude/CLAUDE.md`)
 
 **Tool coverage — Package management:**
 - `npm ci` → auto-pass (lockfile-exact install, deterministic)
@@ -318,6 +321,7 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 - `poetry`: install, add, run → auto-pass; `pipenv`: install, run → auto-pass
 - `black`, `isort`, `bandit`, `safety`, `coverage run/html`, `hatch build/run`, `python -m build` → auto-pass
 - `conda list`, `conda env list`, `conda activate` → auto-pass; `conda create/install` → ask (writes outside cwd)
+- `python -m json.tool`, `dis`, `timeit`, `pydoc`, `calendar`, `base64`, `ast`, `compileall` → auto-pass
 
 **Tool coverage — Rust:**
 - `cargo nextest`, `cargo expand`, `cargo fix`, `cargo clippy --fix`, `cross build`, `cargo miri test` → auto-pass
@@ -327,12 +331,50 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 - `tsup`, `vite build/dev`, `esbuild`, `rollup`, `npx prettier --write/--check` → auto-pass
 - `biome check/format`, `ts-node`, `tsx`, `vitest watch` → auto-pass
 
+**Tool coverage — Go:**
+- `go test`, `go build`, `go vet`, `go mod tidy`, `go mod download/verify/graph`, `go doc`, `go env`, `go list` → auto-pass
+- `go generate ./...` → ask (runs arbitrary `//go:generate` directives); `go install` → ask (writes to `$GOPATH/bin`)
+
+**Tool coverage — Ruby / Elixir / Java:**
+- `bundle install/exec/update` → auto-pass; `gem install` → ask (system paths)
+- `mix deps.get/compile/test/phx.server/ecto.migrate` → auto-pass; `mix ecto.rollback/hex.publish` → ask
+- `mvn compile/test/verify`, `gradle build/test` → auto-pass; `mvn deploy`, `gradle publish` → ask
+
+**Tool coverage — IaC and provisioning:**
+- Pulumi: `preview/stack ls/stack output` → auto; `up/destroy/refresh/import` → ask
+- AWS CDK: `ls/diff/synth` → auto; `deploy/destroy/bootstrap` → ask
+- Ansible: `--check/--syntax-check` → auto; `ansible-playbook` → ask (remote SSH); `ansible-lint` → auto
+
+**Tool coverage — Database migrations:**
+- Flyway: `info` → auto; `migrate/baseline/repair/clean` → ask
+- Liquibase: `status/history` → auto; `update/rollback/drop-all` → ask
+- Knex: `migrate:status/list` → auto; `migrate:latest/rollback/seed:run` → ask
+- Alembic: `current/history` → auto; `upgrade/downgrade` → ask
+
+**Tool coverage — SaaS service CLIs:**
+- Stripe: `listen/logs tail/fixtures` → auto; `trigger/events resend/login` → ask
+- Supabase: `start/stop/status/migration new/gen types` → auto; `db push/reset/functions deploy/link` → ask
+- Firebase: `emulators:start/functions:log` → auto; `deploy/use/login` → ask
+- Vercel: `dev/build` → auto; `deploy/link/login/env pull` → ask
+- Netlify: `dev/build/status/env:list` → auto; `deploy/link/login/env:set` → ask
+- Railway: `status/list/logs` → auto; `up/run/link/login` → ask
+- Fly.io: `status/logs/info/proxy` → auto; `deploy/launch/scale/ssh console/secrets set` → ask
+
+**Tool coverage — SSH key management:**
+- `ssh-keyscan <host>` (stdout) → auto; `>> ~/.ssh/known_hosts` → ask
+- `ssh-add -l/-L` → auto; `ssh-add`/`ssh-copy-id` → ask
+- `ssh-keygen -f ./key` (cwd output) → auto; default `~/.ssh/` path → ask
+
+**Tool coverage — Container alternatives:**
+- Podman and nerdctl follow the same rules as Docker equivalents
+
 **Tool coverage — Debugging and analysis:**
 - `gdb`/`lldb`/`valgrind`/`perf` on local binaries → auto-pass; on running process PIDs → ask
 - Security testing tools (`nmap localhost`, `burpsuite` on local dev) → context-dependent
 
 **Tool coverage — Infrastructure:**
 - GitHub CLI (`gh`): 15+ read ops auto-pass; write ops ask; `gh pr checkout` auto in full, ask in partial
+- GitLab CLI (`glab`): read ops auto-pass; write ops ask
 - Playwright MCP: 8 read tools auto-pass; 14 write/interaction tools ask; `browser_evaluate` always ask
 - kubectl: `get/describe/logs/port-forward` → auto-pass; `apply` (local file) auto in full; `delete/scale/rollout restart` → ask
 - AWS CLI: `ec2 describe-*`, `iam list-*`, `lambda list-*`, `logs get-*` → auto-pass; `lambda invoke`, `iam create-*`, `ec2 start/stop`, `cloudformation deploy` → ask
