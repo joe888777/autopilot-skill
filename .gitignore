@@ -1,3 +1,5 @@
 .DS_Store
 *.swp
 *.swo
+# Personal preferences — not shared across users
+preferences.md
