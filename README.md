@@ -245,6 +245,19 @@ Hands-free enforces **5 universal hard stops** in ALL modes, including `crazy-wo
 
 All other hard stops (git push, merge, destructive ops) apply in `full`/`partial`/`off` modes but are auto-approved in `crazy-workspace` within `./`.
 
+## Per-project overrides (CLAUDE.md)
+
+Global preferences apply across all projects. For repo-specific rules, add a `hands-free overrides` section to the project's CLAUDE.md:
+
+```markdown
+# hands-free overrides
+- Always pause before auto-committing in this repo
+- Never auto-accept git push
+- Shell commands containing `psql postgresql://prod` must always ask
+```
+
+CLAUDE.md instructions take precedence over global `preferences.md` rules.
+
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
