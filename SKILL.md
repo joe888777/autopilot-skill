@@ -366,6 +366,29 @@ These tools cannot write to disk, run code, or make side effects, so they are sa
   - Unknown → ask before the first use; record the user's choice as a preference if they approve
 - **crazy-workspace override:** MCP write ops that target purely local resources (e.g., a local browser tab, a local filesystem MCP) may be auto-approved in crazy-workspace. MCP ops that write to external services (Notion, Slack, GitHub) remain ask even in crazy-workspace.
 
+**Playwright MCP tool classification (common tools):**
+- `browser_snapshot` → auto-pass (read-only accessibility snapshot)
+- `browser_take_screenshot` → auto-pass (read-only screenshot)
+- `browser_console_messages` → auto-pass (read-only log inspection)
+- `browser_network_requests` → auto-pass (read-only network monitoring)
+- `browser_tabs` → auto-pass (read-only tab listing)
+- `browser_navigate` / `browser_navigate_back` → ask (changes browser state, may trigger network requests)
+- `browser_click` → ask (interacts with page, may trigger forms/network)
+- `browser_type` → ask (enters text into form fields)
+- `browser_fill_form` → ask (fills and potentially submits forms)
+- `browser_select_option` → ask (changes dropdown state)
+- `browser_drag` → ask (triggers UI interactions)
+- `browser_hover` → auto-pass in full (visual-only state change, rarely has side effects); ask in partial (may trigger JS events)
+- `browser_press_key` → ask (keyboard input, may submit forms or trigger actions)
+- `browser_handle_dialog` → ask (dismisses or accepts browser dialogs)
+- `browser_file_upload` → ask (uploads files — external side effect)
+- `browser_evaluate` → ask (executes JavaScript — could have any side effect)
+- `browser_run_code` → ask (same as evaluate — arbitrary JS execution)
+- `browser_wait_for` → auto-pass (waits for a condition — read-only polling)
+- `browser_close` → ask in partial (closes browser session — irreversible for current test)
+- `browser_resize` → auto-pass (viewport change, local only)
+- `browser_install` → ask (installs Playwright browser — writes to system paths)
+
 ## Write-Capable Tool Rules
 
 **Edit** and **Write** tools (file modification) follow the same rules as shell commands scoped to the workspace:
@@ -493,8 +516,10 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `ssh user@host`, `scp user@host:...`, `rsync` to/from remote host → ask (remote machine access — not within `./`)
 - `git submodule add <url>` → auto-pass in full (adds submodule to cwd, non-destructive); ask in partial (execution-type decision)
 - Cloud storage CLIs writing to remote buckets → ask (remote state, not within `./`): `aws s3 cp`/`sync`/`rm`, `gsutil cp`/`rsync`/`rm`, `az storage blob upload`; cloud read commands (`aws s3 ls`, `gsutil ls`) → auto-pass (read-only)
-- `gh` (GitHub CLI) read operations → auto-pass: `gh issue list`, `gh pr list`, `gh pr view`, `gh repo view`, `gh run list`, `gh run view`
-- `gh` (GitHub CLI) write operations → ask (shared/remote state): `gh issue create`, `gh pr create`, `gh pr merge`, `gh pr close`, `gh issue close`, `gh pr review`, `gh release create`
+- `gh` (GitHub CLI) read operations → auto-pass: `gh issue list`, `gh pr list`, `gh pr view`, `gh repo view`, `gh run list`, `gh run view`, `gh run watch`, `gh workflow list`, `gh workflow view`, `gh gist view`, `gh gist list`, `gh api <endpoint>` (GET only), `gh repo list`, `gh label list`, `gh tag list`, `gh search issues/prs/repos`
+- `gh` (GitHub CLI) write operations → ask (shared/remote state): `gh issue create`, `gh pr create`, `gh pr merge`, `gh pr close`, `gh issue close`, `gh pr review`, `gh release create`, `gh workflow run`, `gh workflow enable/disable`, `gh gist create`, `gh gist edit`, `gh repo fork`, `gh repo create`, `gh api <endpoint>` (POST/PUT/DELETE), `gh pr comment`, `gh issue comment`, `gh pr edit`, `gh issue edit`
+- `gh pr checkout <number>` → ask in partial (checks out remote PR branch, changes local branch state); auto-pass in full (equivalent to `git fetch` + `git checkout`)
+- `gh run rerun` → ask (re-triggers a CI run on remote)
 - `curl -X POST/PUT/PATCH/DELETE` to external URLs → ask (sends or modifies remote data); `curl GET` / `curl -o ./file` → auto-pass (read-only or writes to cwd)
 - `kubectl exec -it <pod> -- bash` → ask (opens a shell in a remote Kubernetes pod)
 - `kubectl apply -f ./k8s/` → auto-pass in full (applies local manifests; cwd-scoped); ask in partial (deploys to cluster — execution-type)
@@ -597,6 +622,11 @@ Examples:
 - `curl ... | bash` → HARD STOP (regardless of other components)
 
 **Env-var prefix rule:** A command of the form `KEY=value cmd arg...` is classified by its underlying `cmd`, not by the env var prefix. `DATABASE_URL=postgresql://localhost cargo test` → auto-pass (cargo test is cwd-scoped). `API_KEY=secret curl https://api.example.com/upload` → ask (escapes cwd). The env var prefix does not change the classification.
+
+**Sensitive variable name hint (env-var prefix):** If an env-var prefix contains a variable name with a high-secrets-signal name (e.g., `API_KEY=`, `SECRET=`, `PASSWORD=`, `TOKEN=`, `PRIVATE_KEY=`, `CREDENTIALS=`) AND the value looks like a real credential (not a placeholder), apply the Write-time secrets check to the *value* in the env-var prefix. If the value appears to be a real secret, announce and pause before running the command — passing a live credential on the command line can expose it in `ps aux` output or shell history.
+- `API_KEY=sk-live-abc123 curl https://api.example.com/data` → pause: `[security] Live API key detected in env-var prefix — this will appear in process list. Consider loading from .env file instead.`
+- `SECRET=placeholder cargo test` → auto-pass (value is clearly a placeholder, not a live credential)
+- `DATABASE_URL=postgresql://localhost/mydb cargo test` → auto-pass (no credentials in the URL)
 
 If the command only references relative paths, current-dir files, or env vars scoped to the project, it is safe to auto-pass.
 
