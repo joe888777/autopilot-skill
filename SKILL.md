@@ -980,6 +980,14 @@ Check:
 - The choice matches the skill key exactly — `writing-plans` preferences apply to the writing-plans skill's approval points only
 - `/hands-free status` shows how many preferences are loaded
 
+### "Auto-commit is silently skipping when I expect a commit"
+
+Check:
+- `git status` — are there actual modified tracked files, or only untracked files? Untracked-only = no commit (by design)
+- Did a pre-commit hook modify the staged files, leaving nothing staged after normalization? Check if the hook is reformatting/moving files
+- Is auto-commit off? (`/hands-free status` → Auto-commit: off)
+- Are all files in `.gitignore`? Auto-commit only stages tracked or newly modified files
+
 ### "Hands-free is asking about npm install / cargo install unexpectedly"
 
 If a `-g` / `--global` flag is present, hands-free correctly asks because global installs write outside `./`. To suppress: install locally (`npm install --save-dev typescript` instead of `npm install -g`), or if you intentionally want global, confirm the prompt. In crazy-workspace, global installs still ask because they write outside `./`.
