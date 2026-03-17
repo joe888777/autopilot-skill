@@ -93,6 +93,38 @@
 - "Redis commands blocked unexpectedly": add CLAUDE.md override for non-standard local hostnames
 - `cargo install --path .` ask: expected; writes to `~/.cargo/bin`, not cwd
 
+### Added (iteration 8 — batch 22–23)
+
+**Shell rules — compound command improvements**
+- Trivially safe commands transparent in compounds: `echo`, `printf`, `true`, `false`, `exit`, `read`, `sleep`, `date`, `pwd`, `ls`, `cat` — do NOT elevate classification
+  - Example: `echo "Building..." && cargo build` → auto-pass
+- Pipe (`|`) classification rule: classify each component independently; most restrictive wins; `cmd2 = bash/sh/zsh` → HARD STOP
+- Process substitution `<(cmd)` rule: classify by inner command; `source <(curl URL)` → HARD STOP; `diff <(git show HEAD:file) ./file` → auto-pass
+- Shell variable expansion in path args: known escape-list vars → ask; clearly local vars → cwd-scoped; unknown vars → ask (conservative)
+
+**Build state health check — language-agnostic**
+- Detect project language from root config files: `Cargo.toml` → `cargo build`; `pyproject.toml` → mypy/py_compile; `package.json` + `tsconfig.json` → `npx tsc --noEmit`; `go.mod` → `go build ./...`
+- If no build tool detected → skip health check, route from git state only
+
+**New command**
+- `/hands-free recommend prune` — review and remove stale low-confidence observations from `preferences.md`; only removes observations that are superseded, contradicted, or have no reinforcement; medium/high rules never auto-pruned
+
+**Known Limitations section** — 8 documented limitations:
+- Session-scoped state (resets each conversation)
+- No cross-session log persistence
+- Concurrent sessions not coordinated (index.lock is the only signal)
+- Static command classification (symlink edge case)
+- Preference keys are skill-scoped
+- Approval points in streaming output
+- Tool result prompt injection caveat
+- Shell alias inspection not possible
+
+**Examples table** — 15 new entries:
+- Pipe pipeline examples (cwd-scoped auto-pass, curl-escapes ask, find-escapes ask)
+- Process substitution examples (`diff <(git show ...)`, `wc -l <(find /etc)`, `comm <(sort a) <(sort b)`)
+- Shell variable examples (`rm -rf $BUILD_DIR` ask, `OUT=./dist && mkdir` auto-pass, `cp ./src $GOPATH/...` ask)
+- Trivially safe transparent commands (`echo && cargo build`, `printf && git add`)
+
 ## [2.2.0] — 2026-03-17
 
 ### Added (iteration 5)

@@ -571,6 +571,33 @@ If the command only references relative paths, current-dir files, or env vars sc
 
 **`||` operator nuance:** In `cmd1 || cmd2`, cmd2 only runs if cmd1 fails. Both commands must be auto-pass for the compound to auto-pass (because cmd2 might run). This is the same as `&&` — classify by most restrictive component regardless of whether execution is conditional.
 
+**Pipe (`|`) classification rule:** A Unix pipe (`cmd1 | cmd2`) is distinct from compound operators (`&&`, `||`, `;`). For pipe classification:
+- If `cmd2` is a shell interpreter (`bash`, `sh`, `zsh`, `dash`, `fish`) → **HARD STOP** (pipe-to-shell; already documented)
+- Otherwise, classify **both commands independently** and use the most restrictive result:
+  - `cat ./data.json | jq '.key'` → auto-pass (both are cwd-scoped)
+  - `git log --oneline | head -20` → auto-pass (both are cwd-scoped)
+  - `curl https://api.example.com | jq '.'` → ask (curl escapes cwd, even though jq doesn't)
+  - `ls ./src | sort` → auto-pass (both cwd-scoped read-only)
+  - `cat ./log.txt | grep "ERROR" | wc -l` → auto-pass (three-stage pipeline, all cwd-scoped)
+  - `find /etc | xargs cat` → ask (find escapes cwd)
+- Long pipelines: classify each stage; the most restrictive wins
+
+**Process substitution `<(cmd)` rule:** Process substitution feeds the output of `cmd` as a file descriptor. Classify by the substituted command's classification, then apply the outer command's rule:
+- `diff <(git show HEAD:./file.txt) ./file.txt` → auto-pass (inner is cwd-scoped read-only, diff is cwd-scoped)
+- `source <(curl URL)` → **HARD STOP** (inner fetches remote; source executes it — pipe-to-shell equivalent)
+- `wc -l <(find /etc -name "*.conf")` → ask (inner escapes cwd)
+- `comm <(sort ./a.txt) <(sort ./b.txt)` → auto-pass (both inner commands are cwd-scoped)
+
+**Shell variable expansion in path arguments:** When a command uses `$VARNAME` in a path argument, classify based on what the variable represents:
+- **Known escape-list vars** (`$CARGO_HOME`, `$GOPATH`, `$RUSTUP_HOME`, `$HOME`, `$GOROOT`, `$XDG_CONFIG_HOME`) → treat as escaping cwd → apply mode rules normally (ask if not always-auto-pass)
+- **Clearly project-local vars** — set in the same command or from a local config and obviously within cwd (`SRC_DIR=./src cargo build`) → cwd-scoped
+- **Unknown vars** — if the variable's value cannot be inferred from context, apply a conservative classification: treat as potentially escaping → ask
+- Examples:
+  - `rm -rf $BUILD_DIR` (unknown) → ask (could be anything)
+  - `cp ./src $GOPATH/src/project` → ask (GOPATH escapes cwd)
+  - `OUT=./dist && mkdir -p $OUT` → auto-pass (OUT is clearly local)
+  - `cat $HOME/.config/app.toml` → ask (HOME escapes cwd)
+
 **`su - username`** → ask (switches to another user's account — grants access to their files and credentials)
 
 **`sudo cmd`** (where `cmd` doesn't write to system paths):
@@ -943,6 +970,21 @@ digraph {
 | `sudo cp config /etc/myapp/config` | **HARD STOP** (writes to /etc) |
 | `psql postgresql://prod-db/mydb -c "DROP TABLE users"` | ask (remote DB host — destructive but user must decide) |
 | `sed -i 's/foo/bar/g' /etc/config` | **HARD STOP** (escapes cwd) |
+| `git log --oneline \| head -20` | auto-pass (both cwd-scoped read-only, pipeline) |
+| `cat ./data.json \| jq '.users[]'` | auto-pass (cwd-scoped pipeline) |
+| `ls ./src \| sort` | auto-pass (cwd-scoped pipeline) |
+| `cat ./log.txt \| grep "ERROR" \| wc -l` | auto-pass (three-stage cwd-scoped pipeline) |
+| `curl https://api.example.com/data \| jq '.'` | ask (curl escapes cwd, even though jq doesn't) |
+| `find /etc \| xargs cat` | ask (find escapes cwd) |
+| `diff <(git show HEAD:./main.rs) ./main.rs` | auto-pass (process substitution, both cwd-scoped) |
+| `wc -l <(find /etc -name "*.conf")` | ask (inner find escapes cwd) |
+| `comm <(sort ./a.txt) <(sort ./b.txt)` | auto-pass (both inner commands are cwd-scoped) |
+| `rm -rf $BUILD_DIR` (unknown var) | ask (unknown variable — could escape cwd) |
+| `OUT=./dist && mkdir -p $OUT` | auto-pass (variable clearly local to cwd) |
+| `cp ./src $GOPATH/src/project` | ask (GOPATH escapes cwd) |
+| `cat $HOME/.config/app.toml` | ask (HOME escapes cwd) |
+| `echo "Building..." && cargo build` | auto-pass (echo is transparent in compound) |
+| `printf "Done\n" && git add ./src/` | auto-pass (printf is transparent in compound) |
 
 ## Auto-Commit
 
@@ -1275,6 +1317,26 @@ Type "confirm" once more to finalize: _
 Rule added: git push to feature branches → auto-approve
 Saved to preferences.md as high-confidence rule.
 ```
+
+**`/hands-free recommend prune`** — review and remove stale low-confidence observations from `preferences.md`. Use when the file has grown large (> 50 rules) or when you've changed your workflow significantly.
+
+Output format:
+```
+Hands-Free: Prune Recommendations
+  preferences.md has 63 rules.
+
+  Stale observations (superseded or contradicted):
+  1. writing-plans → "subagent-driven" (1x, low) — superseded by "subagent-driven" (5x, high)
+  2. brainstorming → "simplest" (1x, low) — contradicted by "recommended" (4x, medium)
+  3. finishing-branch → "create PR" (1x, low) — no recent reinforcement in 30+ sessions
+
+  Candidates for removal: 3 / 63 rules
+  Type 'prune' to remove these 3 stale observations, or 'skip' to keep all:
+  > _
+```
+- Only prunes **low-confidence observations** (1-2x) that are superseded, contradicted, or very old
+- Medium- and high-confidence rules are **never pruned automatically** — remove them manually with `/hands-free reset` or by editing `preferences.md`
+- After pruning, reports: `Pruned 3 observations. preferences.md now has 60 rules.`
 
 **What `/hands-free recommend` will NEVER suggest:**
 - Promoting `curl | bash`, `chmod 777`, `source <(curl)`, language-level RCE, secrets detection, `rm -rf *`, or `rm -rf .git` to auto-accept — universal hard stops cannot be promoted under any circumstances, regardless of usage history
