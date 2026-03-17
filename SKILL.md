@@ -325,6 +325,19 @@ Note: `git tag -d <name>` (delete) and `git push --tags` are NOT auto-pass — d
 Note: `git worktree remove <path>` is NOT auto-pass — destructive (removes the worktree directory).
 
 Additional git command behavior (governed by normal mode rules, not always-pass):
+- `git pull` → auto-pass in full mode (fetches from remote + merges/rebases into current branch; local op, but changes working tree and commit history)
+- `git pull --rebase` → auto-pass in full mode (fetch + rebase — rewrites local history, but no remote state change)
+- `git pull --ff-only` → auto-pass (safe fast-forward merge; fails if a merge commit would be required, never rewrites history)
+- `git pull` and `git pull --rebase` → ask in partial mode (modifies working state — execution-type decision)
+- `git rebase --continue` / `git rebase --skip` / `git rebase --abort` → auto-pass (mid-rebase continuation; user already approved the rebase before it started)
+- `git cherry-pick --continue` / `git cherry-pick --abort` → auto-pass (mid-cherry-pick continuation)
+- `git merge --abort` → auto-pass (cancels a merge in progress; restores pre-merge state)
+- `git apply ./fix.patch` / `git apply --3way ./fix.patch` → auto-pass if the patch file is within cwd (applies a patch from a local file)
+- `git am ./patches/*.patch` → auto-pass if patch files are within cwd (applies mailbox patches)
+- `cargo update` → auto-pass (updates Cargo.lock dependencies; non-destructive, cwd-scoped)
+- `npm update` / `pnpm update` / `yarn upgrade` → auto-pass (updates package lock/yarn.lock; cwd-scoped)
+- `pip install --upgrade <package>` (venv active) → auto-pass (upgrades a specific package in the active venv)
+- `pip install --upgrade <package>` (no venv) → ask (upgrades system/user Python package — escapes cwd)
 - `git revert <commit>` → auto-pass in full mode (creates a new commit, reversible)
 - `git cherry-pick <commit>` → auto-pass in full mode (applies a commit, non-destructive)
 - `git clean -n` → auto-pass (dry run, read-only)
@@ -362,7 +375,9 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - Parent directory traversal (`../`) that exits the current dir after normalization (e.g. `/workspace/../../../etc`)
 - System-wide write targets (`/usr/local/bin`, `/etc/hosts`, etc.)
 - Symlinked paths that resolve outside the workspace (e.g., `ln -s /etc target` followed by operations on `target`)
-- Shell variable expansions that point outside cwd: `$HOME`, `~`, `$XDG_*`, `$TMPDIR` used as write targets
+- Shell variable expansions that point outside cwd: `$HOME`, `~`, `$XDG_*`, `$TMPDIR`, `$CARGO_HOME`, `$GOPATH`, `$RUSTUP_HOME`, `$GOROOT` used as write targets (these point to user-wide or system-wide directories)
+- `wget -O /usr/local/bin/tool URL` → ask (writes outside cwd); `wget -O ./tool URL` → auto-pass (downloads to cwd, same as `curl -o ./tool URL`)
+- `curl -s URL > ./data.json` → auto-pass (GET request, writes output to cwd file); `curl -s URL > /tmp/file` → ask (writes to system temp, escapes cwd)
 - Pipe-to-shell patterns: `| bash`, `| sh`, `| zsh` after a network fetch — always HARD STOP regardless of path
 - System inspection commands (read-only, always auto-pass regardless of mode): `ps aux`, `ps -ef`, `lsof -i`, `netstat -an`, `ss -tuln`, `df -h`, `du -sh ./`, `top -bn1`, `htop -t`, `uname -a`, `which <cmd>`, `whereis <cmd>`, `type <cmd>` — these display state, never modify it
 - Remote database connection strings in the command line: a URI of the form `postgresql://non-localhost`, `mysql://non-localhost`, `mongodb://non-localhost`, etc. where the host is not `localhost`, `127.0.0.1`, or a Unix socket path → ask (potentially targets a remote/shared database)
@@ -557,6 +572,23 @@ digraph {
 | `git tag v1.0.0` | auto-pass (local tag creation) |
 | `git tag -d v1.0.0` | ask (tag deletion) |
 | `git push --tags` | ask (pushes to remote) |
+| `git pull` | auto-pass in full (fetches + merges) |
+| `git pull --rebase` | auto-pass in full; ask in partial |
+| `git pull --ff-only` | auto-pass (safe fast-forward only) |
+| `git rebase --continue` | auto-pass (mid-rebase continuation) |
+| `git rebase --abort` | auto-pass (cancel in-progress rebase) |
+| `git cherry-pick --continue` | auto-pass (mid-cherry-pick) |
+| `git merge --abort` | auto-pass (cancel in-progress merge) |
+| `git apply ./fix.patch` | auto-pass (local patch file) |
+| `cargo update` | auto-pass (updates Cargo.lock) |
+| `npm update` | auto-pass (updates package-lock.json) |
+| `pnpm update` | auto-pass (updates pnpm-lock.yaml) |
+| `pip install --upgrade requests` (venv active) | auto-pass (upgrades in venv) |
+| `pip install --upgrade requests` (no venv) | ask (writes to system Python) |
+| `wget -O ./data.json https://example.com/api` | auto-pass (GET, writes to cwd) |
+| `wget -O /usr/local/bin/tool https://example.com/tool` | ask (writes outside cwd) |
+| `curl -s https://api.example.com/data > ./response.json` | auto-pass (GET, writes to cwd) |
+| `curl -s https://api.example.com/data > /tmp/data.json` | ask (writes to /tmp — escapes cwd) |
 | `git worktree add .worktrees/feat feat` | auto-pass (local linked worktree) |
 | `psql -f ./migration.sql` | auto-pass (cwd-scoped, local DB file) |
 | `createdb mydb` | auto-pass (creates local DB; default localhost) |
