@@ -942,16 +942,16 @@ When crazy-workspace is activated, print a clear warning:
 ```
 Crazy-Workspace ACTIVE — scope: ./
 Auto-approving all operations within this directory.
-Hard stops: rm -rf * | rm -rf .git | curl|bash | chmod 777 | secrets-in-commit | paths outside ./
+Hard stops: rm -rf * | rm -rf .git | curl|bash | source <(curl) | language RCE | chmod 777 | secrets-in-commit | paths outside ./
 ```
 
 ### Decision Flow
 
 ```dot
 digraph {
-    "Action requested" -> "Absolute hard stop? (rm -rf *, rm -rf .git, curl|bash, chmod 777, secrets)";
-    "Absolute hard stop? (rm -rf *, rm -rf .git, curl|bash, chmod 777, secrets)" -> "HARD STOP" [label="yes"];
-    "Absolute hard stop? (rm -rf *, rm -rf .git, curl|bash, chmod 777, secrets)" -> "Within ./?";
+    "Action requested" -> "Universal hard stop? (rm -rf *, rm -rf .git, curl|bash, source <(curl), language RCE, chmod 777, secrets)";
+    "Universal hard stop? (rm -rf *, rm -rf .git, curl|bash, source <(curl), language RCE, chmod 777, secrets)" -> "HARD STOP" [label="yes"];
+    "Universal hard stop? (rm -rf *, rm -rf .git, curl|bash, source <(curl), language RCE, chmod 777, secrets)" -> "Within ./?";
     "Within ./?" -> "Auto-approve" [label="yes"];
     "Within ./?" -> "HARD STOP" [label="no — escapes scope"];
 }
