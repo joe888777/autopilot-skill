@@ -182,6 +182,18 @@ Hands-free works with any skill that presents approval points, not just superpow
 - A numbered choice like "1. Option A  2. Option B (recommended)" → pick the recommended one
 - Any request for the user to choose between paths forward → apply current mode rules
 
+**Execution-type vs design-type for partial mode:** In partial mode, "execution-type" approval points pause and ask; all others auto-proceed. For custom skills, classify as execution-type if the approval point:
+- Asks HOW to execute (e.g., "Run in parallel or sequential?", "Use subprocess or API call?")
+- Asks whether to continue executing the next batch of work
+- Involves choosing a specific implementation strategy (not just an approach)
+
+Classify as design-type (auto in partial) if the approval point:
+- Asks WHAT to build (e.g., "Which feature approach?", "Does this design look right?")
+- Approves a design artifact (plan, spec, design doc)
+- Represents a conceptual phase transition (brainstorming → planning)
+
+When in doubt: if the approval leads directly to running code or writing files, it's execution-type; if it's still in the planning/design phase, it's design-type.
+
 **Implicit recommendations** — when a skill says something like "I recommend approach 1, but you can choose":
 - Treat it as an explicit recommendation for approach 1 → auto-pick it
 - If the wording is "I suggest" / "I'd recommend" / "best option is" / "my preference is" → treat as recommendation
