@@ -42,6 +42,8 @@ cp -r autopilot-skill ~/.claude/skills/hands-free
 /hands-free review-checkpoints on # Pause at phase transitions for review
 /hands-free learning <h/m/l>      # Set learning sensitivity (high/medium/low)
 /hands-free dry-run               # Preview what would be auto-accepted
+/hands-free pause                 # Temporarily suspend auto-accept (mode preserved)
+/hands-free resume                # Resume auto-accept after pause
 /hands-free reset                 # Clear all learned preferences (requires confirmation)
 /hands-free status                # Show current mode + all settings
 /hands-free recommend             # Suggest optimal settings

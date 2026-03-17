@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased] — 2026-03-17 (iteration 2, pass 2)
+
+### Added
+
+- **`/hands-free pause` / `/hands-free resume`**: temporarily suspend auto-accept without changing mode; paused state visible in `/hands-free status`; hard stops remain active during pause
+- **Preferences scoping**: documented that preferences are global (not per-project); added "What NOT to record" guidance (one-off decisions, conflicting choices, hard stop approvals)
+- **Shell examples expanded**: added `cargo build`, `make build` as auto-pass; added `curl|bash`, `wget|sh`, `eval$(curl)`, `chmod 777`, `sudo cp /etc/` as HARD STOP examples
+- **Status output**: added `Paused:` field; split hard stops into "Universal" and "Mode" tiers; added `secrets-in-commit` to universal list
+
+### Fixed
+
+- **Status output**: `git push` was listed in flat "Active hard stops" list — now correctly shown in "Mode hard stops" (not applicable in crazy-workspace)
+
 ## [Unreleased] — 2026-03-17 (iteration 2)
 
 ### Added
