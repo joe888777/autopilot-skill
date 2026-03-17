@@ -1206,10 +1206,32 @@ When enabled (`/hands-free auto-commit on`), automatically commit changes at nat
 
 ### When to Auto-Commit
 
+**General rules:**
 - After completing a discrete task (feature, bugfix, refactor)
 - After a plan step or batch is finished
 - After tests pass for a completed change
 - After meaningful file edits that form a logical unit
+
+**Per superpowers-skill milestones:**
+| Skill Phase | Commit? | What to Commit |
+|---|---|---|
+| brainstorming — design approved | No | No files changed in brainstorming |
+| writing-plans — plan finalized | Yes | The plan file (e.g., `PLAN.md`, `.claude/plan.md`) |
+| executing-plans — batch N complete | Yes | All files modified in that batch |
+| systematic-debugging — fix applied | Yes | The fixed files; message: `fix: [description of bug fixed]` |
+| verification-before-completion | No | Tests ran; no new code written |
+| finishing-a-development-branch | No | Let the user decide push/merge; don't commit on their behalf |
+
+**When NOT to auto-commit:**
+- While Claude is mid-edit on a file (partial state is not a logical unit)
+- After only adding comments or whitespace (unless the style fix IS the intended change)
+- After a test run that FAILED (failing tests are not a committed milestone)
+- After generating temporary files (`.tmp`, scratch files, debug output)
+- When in detached HEAD, bare repo, or merge-conflict state (see edge cases table)
+- When the only changes are from tools that reformatted but didn't change logic (e.g., `rustfmt` ran via pre-commit hook; the hook already committed or the reformat is part of the next logical commit)
+- After `verification-before-completion` (verification doesn't produce new code to commit)
+
+**Lint/format hook interaction:** If a pre-commit hook auto-formats files (rustfmt, prettier, black) and the hook fails (non-zero exit), do NOT retry. Announce the failure. The auto-formatted state may not be staged — instruct the user to `git add` the reformatted files and try again. If the hook PASSES after formatting, the commit completes normally; hands-free does not add an extra commit for the formatting change (it was handled by the hook).
 
 ### How It Works
 
