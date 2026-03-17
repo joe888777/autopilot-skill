@@ -280,6 +280,40 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 - Works with [Superpowers](https://github.com/anthropics/claude-code-plugins), custom skills, or any workflow with approval points
 
+## What's new in 2.1
+
+**Security:**
+- Root shell escalation hard stop: `sudo -s`, `sudo su`, `sudo bash` now blocked in all modes
+- Global install detection: `npm install -g`, `cargo install`, `pip install` (no venv) → ask
+- Docker volume mount rules: `-v ./:/app` auto-pass; `-v /:/host` ask
+- Package publish/deploy hard stops: `cargo publish`, `npm publish`, `docker push`, `vercel deploy` → ask
+
+**Commands:**
+- `/hands-free` with no argument: activates full mode or shows status if already active
+- `/hands-free learning` with no argument: shows current level and threshold summary
+- `/hands-free recommend promote <action>`: promote a standard hard-stop to auto-accept (double confirmation required)
+- `/hands-free explain` now covers hard stops, not just auto-accepts
+
+**Shell auto-pass:**
+- Git: `git checkout -b`, `git branch`, `git stash/pop`, `git log/status/diff` added to always-auto-pass
+- Version managers: `nvm`, `rustup` added alongside `pyenv`
+- Package managers: `pnpm`, `yarn` added alongside `npm`
+- Databases: `sqlx migrate`, `alembic upgrade`, `npx prisma migrate`, `django manage.py migrate`
+- More languages: Python type checking (mypy, ruff), Rust formatting (cargo fmt), Bun
+
+**Behavior:**
+- Mode persistence: resets at session end; persist via CLAUDE.md `Default mode:` directive
+- CLAUDE.md `Default mode/Auto-commit/Learning` directives activate at session start automatically
+- Announcement format defined for all decision sources (silent, announce, hard stop)
+- Custom skill implicit recommendation detection ("I recommend...", "I suggest...")
+- Loop stall prevention: 3 iterations with no new progress triggers stall warning
+
+**Reliability:**
+- Partial git add failure: announces which files failed before committing partial staging
+- `preferences.md` corruption: continue with defaults, announce once
+- `review-checkpoints off` ignored in partial mode (always on by design)
+- Agent tool dispatch guidance: full mode auto-approves, partial mode depends on task type
+
 ## What's new in 2.0
 
 **Security (all modes, no exceptions):**
