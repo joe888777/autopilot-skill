@@ -840,7 +840,7 @@ Read the iteration count from `.claude/.ralph-loop.local.md` state file. If the 
 | Plan in progress | executing-plans | Resume from last batch; auto-continue |
 | Tests failing | systematic-debugging | Auto-proceed through phases |
 | Implementation done | verification-before-completion | Auto-verify (optional checkpoint if `review-checkpoints on`) |
-| All complete | finishing-a-development-branch | **Mandatory review checkpoint**, then PAUSE for push/merge |
+| All complete | finishing-a-development-branch | **Mandatory review checkpoint**, then PAUSE for push/merge *(non-loop: push branch; loop: output completion promise instead of pushing — no mandatory pre-push checkpoint needed if no actual push is happening)* |
 
 ### Quick Start
 
