@@ -45,6 +45,28 @@
 - [R] Revise option behavior clarified: prompts user to describe revision, applies it, then re-surfaces checkpoint
 - [S] Stop option announces waiting state and expected resume instruction
 
+**Shell auto-pass (continued)**
+- `git checkout -b`, `git branch`, `git stash/pop`, `git log/status/diff` added to always-auto-pass list
+- `python manage.py migrate`, `python manage.py makemigrations` added (Django)
+- `cargo publish`, `npm publish`, `docker push`, `vercel deploy`, `zeabur deploy` added as ask (external registries/services)
+- Publish/deploy commands added to shared/remote state hard stop list
+
+**Security (continued)**
+- Deployment/publish keyword detection in custom skill approvals: "deploy", "publish", "push to [service]" keywords trigger hard stop pattern recognition
+- Partial git add failure: announce which files failed before attempting partial commit
+
+**Reliability**
+- `preferences.md` corruption: continue with defaults, announce once
+- `/hands-free status` in off mode: shows learning level and preferences loaded count
+- Optional review checkpoints silently ignored in partial mode (always on, not user-configurable)
+- Single-option presentation = confirmation → auto-accept in full mode
+
+**Superpowers integration**
+- `test-driven-development` approval points added to table
+- `verification-before-completion` routing documented: auto-verify → debugging on failure
+- Mode switch announcements defined for all transitions (including off→full, off→partial)
+- Agent tool dispatch guidance: full mode auto-approves, partial mode asks for execution-type agents
+
 ## [2.0.0] — 2026-03-17
 
 ### Added (iteration 3 — same day)
