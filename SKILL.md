@@ -933,6 +933,19 @@ Type "confirm" to proceed or anything else to cancel: _
 
 After confirmation, wipe `preferences.md` to its empty scaffold and announce: `Preferences cleared. Hands-free will use defaults until new preferences are learned.`
 
+The empty scaffold after reset:
+```markdown
+# Hands-Free Preferences
+
+## Learned Rules (high confidence — 5x+)
+
+## Learned Rules (medium confidence — 3-4x)
+
+## Observations (low confidence — tracking)
+```
+
+If `preferences.md` does not exist yet (first-time use), it is created on first recorded preference. A missing file is treated identically to the empty scaffold — do not error or warn on missing file.
+
 ## Ralph Loop Integration
 
 Hands-free is designed to work with ralph-loop (`/ralph-loop`) and superpowers together. When a ralph-loop is active (`.claude/.ralph-loop.local.md` exists), hands-free enters **loop-aware mode** automatically.
@@ -1239,7 +1252,9 @@ Two tiers of hard stops:
 - Publishing packages: `cargo publish`, `npm publish`, `pip publish`, `docker push`, `docker compose push` — pushes to external registries (crates.io, npm, PyPI, Docker Hub)
 - Deploying to cloud services: `zeabur deploy`, `vercel deploy`, `fly deploy`, `heroku push`, `terraform apply`, `terraform destroy` — triggers external infrastructure changes
 
-Note: CI/CD pipeline file edits (e.g., `.github/workflows/`) are local files within `./` and ARE auto-approved in crazy-workspace. But triggering a deployment or sending an API call to an external service is NOT within `./` and is always a hard stop.
+Note: CI/CD pipeline file edits (e.g., `.github/workflows/`, `.travis.yml`, `Jenkinsfile`, `.circleci/config.yml`) are local files within `./` and ARE auto-approved in crazy-workspace. But triggering a deployment or sending an API call to an external service is NOT within `./` and is always a hard stop.
+
+**Crazy-workspace + git push distinction:** `git push` is auto-approved in crazy-workspace (it's intentionally within scope for throwaway repos). But `npm publish`, `docker push`, and similar registry operations are NOT overridden by crazy-workspace — they affect external systems unrelated to the local git repo. The rule: git push → auto (crazy-workspace only); registry/deploy → always ask.
 
 ```dot
 digraph {
