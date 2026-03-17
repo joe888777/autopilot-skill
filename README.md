@@ -63,7 +63,7 @@ cp -r autopilot-skill ~/.claude/skills/hands-free
 | Destructive actions (within workspace) | **ask** | **ask** | ask | auto |
 | Review checkpoint (before execution) | skip | **HARD STOP** | **HARD STOP** | skip |
 | Review checkpoint (before push/merge) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
-| Git push | **HARD STOP** | **HARD STOP** | **HARD STOP** | auto |
+| Git push | ask | ask | ask | auto |
 | `curl \| bash` / pipe-to-shell | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `chmod 777` / privilege escalation | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Secrets in staged files | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
