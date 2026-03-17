@@ -941,7 +941,7 @@ When enabled (`/hands-free auto-commit on`), automatically commit changes at nat
 ### How It Works
 
 1. Stage only the relevant changed files (`git add <specific files>`) — never `git add -A` or `git add .`. "Relevant files" = files that were modified as part of the current task being committed; determined by tracking which files Claude edited or created during the current task. Do NOT stage: files you don't know the purpose of, files still under active work, or files that belong to a different logical unit.
-2. Determine commit message style: run `git log --oneline -5` to see recent messages; match the format (e.g., if repo uses `feat:` / `fix:` prefixes, use those; if it uses plain sentences, match that)
+2. Determine commit message style: run `git log --oneline -5` to see recent messages; match the format (e.g., if repo uses `feat:` / `fix:` prefixes, use those; if it uses plain sentences, match that). If the repo has no prior commits (empty history), use the `feat:` / `fix:` conventional commits format as the default style.
 3. Write a concise commit message following that style
 4. Announce: "Auto-committed: `<short message>`"
 5. Log it in the session log
@@ -994,6 +994,8 @@ Never override this check, even in crazy-workspace mode. Secrets detection is a 
 | `git add` fails (permission error, locked index) | Announce error with note: "If `.git/index.lock` exists, another git process may be running — wait and retry"; pause for user input |
 | `git add` partially fails (some files staged, some not) | Announce partial failure, list which files failed; pause for user input before committing the partial staging |
 | Only untracked files, no modifications | Treat as "no changes" and skip |
+| File was renamed (old path deleted, new path added) | Stage both the deletion and the new file: `git add old.rs new.rs`; `git status` should show the rename |
+| Working in a fresh empty repo (no prior commits) | Use conventional commits format (`feat:`, `fix:`) as default style; skip `git log` style check |
 | Merge conflicts in working tree | Skip auto-commit; announce `[auto-commit] Skipping — merge conflicts present` |
 | Detached HEAD state | Skip auto-commit; announce `[auto-commit] Skipping — detached HEAD. Create or checkout a branch before committing.` |
 | Bare git repository | Skip auto-commit silently (no working tree — cannot stage or commit) |
@@ -1026,7 +1028,7 @@ Preferences stored in `~/.claude/skills/hands-free/preferences.md`. Records choi
 - Shell commands containing `psql postgresql://prod` must always ask
 ```
 
-Claude reads CLAUDE.md at the start of each session. **`Default mode` / `Auto-commit` / `Learning` directives** are applied automatically at session start without the user needing to type any `/hands-free` commands. All other `# hands-free overrides` lines are natural-language rules parsed for each decision: if a rule says "never auto-accept X", X becomes a hard stop for this project. CLAUDE.md instructions take precedence over `preferences.md`.
+Claude reads CLAUDE.md from the current working directory (and may also read from parent directories per Claude Code's standard CLAUDE.md loading behavior). Hands-free processes `# hands-free overrides` sections from the CLAUDE.md that Claude loaded. If multiple CLAUDE.md files exist in a monorepo (root + sub-packages), only the directives loaded by Claude Code for the current session apply. Claude reads CLAUDE.md at the start of each session. **`Default mode` / `Auto-commit` / `Learning` directives** are applied automatically at session start without the user needing to type any `/hands-free` commands. All other `# hands-free overrides` lines are natural-language rules parsed for each decision: if a rule says "never auto-accept X", X becomes a hard stop for this project. CLAUDE.md instructions take precedence over `preferences.md`.
 
 **Session start announcement:** When a CLAUDE.md directive activates hands-free automatically, announce once:
 ```
@@ -1062,6 +1064,8 @@ To change: /hands-free learning <h/m/l>
 - Choices made under time pressure that the user might not repeat
 - Choices that conflict with each other (record the most recent only)
 - Hard stop approvals — never promote a hard stop to auto-accept based on past approvals alone; that requires the user to explicitly set it via `/hands-free recommend` → "Add to auto-accept"
+
+**Preference file size:** If `preferences.md` grows beyond ~100 rules (a sign of very long-term use or wide variety of skills), performance is not affected — it's a text file. However, a large file may contain many stale observations. When `/hands-free recommend` is run and the file has > 50 entries, include a note: `preferences.md has N total rules — consider /hands-free recommend prune to review low-confidence observations.`
 
 **Pruning stale observations:** Low-confidence observations (1-2x) that have not been reinforced can accumulate over time. Prune an observation from `preferences.md` if:
 - The same decision point now has a high- or medium-confidence rule (the observation is superseded)
