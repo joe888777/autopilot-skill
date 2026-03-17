@@ -353,6 +353,8 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `ssh user@host`, `scp user@host:...`, `rsync` to/from remote host → ask (remote machine access — not within `./`)
 - `git submodule add <url>` → auto-pass in full (adds submodule to cwd, non-destructive); ask in partial (execution-type decision)
 - Cloud storage CLIs writing to remote buckets → ask (remote state, not within `./`): `aws s3 cp`/`sync`/`rm`, `gsutil cp`/`rsync`/`rm`, `az storage blob upload`; cloud read commands (`aws s3 ls`, `gsutil ls`) → auto-pass (read-only)
+- `gh` (GitHub CLI) read operations → auto-pass: `gh issue list`, `gh pr list`, `gh pr view`, `gh repo view`, `gh run list`, `gh run view`
+- `gh` (GitHub CLI) write operations → ask (shared/remote state): `gh issue create`, `gh pr create`, `gh pr merge`, `gh pr close`, `gh issue close`, `gh pr review`, `gh release create`
 - `curl -X POST/PUT/PATCH/DELETE` to external URLs → ask (sends or modifies remote data); `curl GET` / `curl -o ./file` → auto-pass (read-only or writes to cwd)
 - `kubectl exec -it <pod> -- bash` → ask (opens a shell in a remote Kubernetes pod)
 - `kubectl apply -f ./k8s/` → auto-pass in full (applies local manifests; cwd-scoped); ask in partial (deploys to cluster — execution-type)
@@ -506,6 +508,12 @@ digraph {
 | `ssh user@host` | ask (remote machine access) |
 | `scp ./file user@host:/path/` | ask (copies to remote machine) |
 | `rsync -av ./dist/ user@host:/var/www/` | ask (deploys to remote server) |
+| `gh issue list` | auto-pass (read-only GitHub API) |
+| `gh pr view 123` | auto-pass (read-only GitHub API) |
+| `gh pr create --title "..." --body "..."` | ask (creates GitHub PR — shared/remote state) |
+| `gh pr merge 123` | ask (merges PR — shared/remote state) |
+| `gh issue create` | ask (creates GitHub issue — shared/remote state) |
+| `gh release create v1.0.0` | ask (creates release — shared/remote state) |
 | `aws s3 ls s3://bucket/` | auto-pass (read-only cloud storage inspection) |
 | `aws s3 cp ./file.txt s3://bucket/` | ask (uploads to remote cloud storage) |
 | `aws s3 sync ./dist/ s3://bucket/` | ask (syncs to remote cloud storage) |
@@ -627,6 +635,13 @@ Preferences stored in `~/.claude/skills/hands-free/preferences.md`. Records choi
 ```
 
 Claude reads CLAUDE.md at the start of each session. **`Default mode` / `Auto-commit` / `Learning` directives** are applied automatically at session start without the user needing to type any `/hands-free` commands. All other `# hands-free overrides` lines are natural-language rules parsed for each decision: if a rule says "never auto-accept X", X becomes a hard stop for this project. CLAUDE.md instructions take precedence over `preferences.md`.
+
+**Session start announcement:** When a CLAUDE.md directive activates hands-free automatically, announce once:
+```
+[hands-free] Session start — mode: full, auto-commit: on, learning: high (from CLAUDE.md)
+Preferences loaded: 3 rules (2 high, 1 medium)
+```
+If no CLAUDE.md directive exists (or the section is absent), start silently in `off` mode with the current preferences loaded.
 
 **CLAUDE.md vs mode conflict:** If CLAUDE.md defines a project-level rule like "always ask before git push" and the user activates `crazy-workspace`, the CLAUDE.md rule takes precedence for that project — git push remains a hard stop. CLAUDE.md overrides are stronger than mode settings, because the user explicitly configured them for the project.
 
