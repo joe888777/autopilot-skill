@@ -52,6 +52,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 | Git push | **ask** | **ask** | **ask** | auto |
 | `curl \| bash` / pipe-to-shell | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `chmod 777` / privilege escalation | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| Secrets detected in staged files | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Review checkpoint (before execution starts) | skip | **HARD STOP** | **HARD STOP** | skip |
 | Review checkpoint (before push/merge) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `rm -rf *` | **ask** | **ask** | **ask** | **HARD STOP** |
@@ -91,7 +92,10 @@ The `markdown` field is only visible when the option is focused — it surfaces 
 | brainstorming | Design section approval | Approve, continue to next |
 | brainstorming | Final design approval | Approve, proceed to writing-plans |
 | writing-plans | Execution method choice | Pick recommended method (full only) |
+| writing-plans → executing-plans | Review checkpoint (mandatory) | **Always HARD STOP** — plan ready to execute |
 | executing-plans | Batch checkpoint | Continue to next batch (full only) |
+| executing-plans → verification | Review checkpoint (optional) | HARD STOP if `review-checkpoints on` |
+| verification-before-completion → finishing-branch | Review checkpoint (mandatory) | **Always HARD STOP** — about to push/merge |
 | systematic-debugging | Phase transitions | Proceed through all phases |
 
 ## Shell Command Auto-Pass Rules
