@@ -530,6 +530,27 @@ Examples:
 
 If the command only references relative paths, current-dir files, or env vars scoped to the project, it is safe to auto-pass.
 
+**Command wrapper rule:** Some commands are transparent wrappers that run an inner command without changing its behavior. For these, classify by the inner command:
+- `time cmd` — measures execution time; classify by `cmd`
+- `watch -n 2 cmd` — repeats `cmd` every 2 seconds; classify by `cmd`
+- `timeout 30 cmd` — runs `cmd` with a time limit; classify by `cmd`
+- `nice cmd` / `nice -n 10 cmd` — adjusts process priority; classify by `cmd`
+- `env KEY=value cmd` — equivalent to `KEY=value cmd`; classify by `cmd` (env-var prefix rule applies)
+- `env -i cmd` — strips env before running; classify by `cmd` (rarely used but benign)
+- `ionice cmd` — adjusts I/O priority; classify by `cmd`
+- `nohup cmd` — detaches from terminal; classify by `cmd` with a note: if `cmd` would auto-pass, `nohup cmd` auto-passes
+
+**Background jobs (`cmd &`):** A command run in the background (`cmd &`) is classified the same as the foreground version. If `cmd` auto-passes, `cmd &` auto-passes. If `cmd` would ask, `cmd &` asks. Background execution doesn't change the risk profile.
+
+**`||` operator nuance:** In `cmd1 || cmd2`, cmd2 only runs if cmd1 fails. Both commands must be auto-pass for the compound to auto-pass (because cmd2 might run). This is the same as `&&` — classify by most restrictive component regardless of whether execution is conditional.
+
+**`su - username`** → ask (switches to another user's account — grants access to their files and credentials)
+
+**`sudo cmd`** (where `cmd` doesn't write to system paths):
+- `sudo cargo build` / `sudo python script.py` → ask (adds elevated privileges unnecessarily; likely a misconfiguration)
+- `sudo chown ./file` (cwd-scoped ownership change) → ask (privilege escalation even if cwd-scoped)
+- `sudo -s`, `sudo bash`, `sudo sh` → HARD STOP (interactive root shell — already covered)
+
 **CI environment note:** When running in a CI environment (detected by `CI=true`, `GITHUB_ACTIONS=true`, `CIRCLECI=true`, or similar env vars), hands-free's auto-pass rules remain unchanged — CI runs in an isolated environment with no persistent state concerns. Auto-commit in CI is typically unnecessary since CI commits are made by the CI system, but it is not blocked. The user's configured mode applies as usual.
 
 **Database connection note:** Commands that read the connection string from an env var (e.g., `DATABASE_URL`) or config file (e.g., `alembic.ini`, `.env`) are treated as cwd-scoped by default — the env var source is not inspected at command-parse time. If the user is concerned about remote DB writes, use CLAUDE.md overrides to add explicit per-project rules (e.g., "Shell commands containing `psql postgresql://prod` must always ask").
