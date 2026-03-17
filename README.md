@@ -15,7 +15,7 @@ A Claude Code skill that auto-accepts recommended options from any skill workflo
 - **Learns** your preferences over time — tracks choices, builds confidence, adapts to you
 - **Ralph-loop integration** — works with ralph-loop + superpowers for fully autonomous iterative development
 - **Four modes** — `full`, `partial`, `off`, and `crazy-workspace` for different levels of autonomy
-- **Comprehensive tool coverage** — 350+ shell command patterns pre-classified for Python (uv/poetry/pipenv), Rust (cargo nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker, Redis, PostgreSQL, SQLite, Go, Java/JVM (Maven/Gradle), Ruby (bundle/mix), Elixir, Kubernetes (kubectl/Helm/Skaffold), cloud CLIs (gcloud/az/AWS), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Railway/Fly.io), and more
+- **Comprehensive tool coverage** — 500+ shell command patterns pre-classified for Python (uv/poetry/pipenv/tox/nox), Rust (cargo nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl/containerd, Redis, PostgreSQL, SQLite, ClickHouse, Go, Java/JVM (Maven/Gradle), Ruby (bundle/RSpec/RuboCop), Rails, Django, Phoenix, .NET, Elixir, Erlang, C/C++/LLVM, Haskell/Scala/Clojure/Kotlin, Kubernetes (kubectl/Helm/Skaffold/kube-score/kubeval/kyverno), service mesh (istioctl/linkerd), cloud CLIs (gcloud/az/AWS), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Railway/Fly.io), IaC (Terraform/Pulumi/CDK/Ansible), gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), ML tools (DVC/MLflow/wandb), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/dependency-check), modern crypto (age/sops), and more
 - **CLAUDE.md Override Reference** — persistent per-project overrides for commands, tools, and patterns; user-global overrides via `~/.claude/CLAUDE.md`
 
 ## Install
@@ -387,6 +387,28 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 - Redis: read ops localhost → auto-pass; write/destructive/remote → ask
 - SQL DDL: `DROP TABLE/TRUNCATE` → ask; `SELECT/INSERT/CREATE TABLE` → auto-pass
 - Network diagnostics: `ping`, `traceroute`, `dig`, `nslookup`, `curl --head` → auto-pass (read-only)
+
+**Tool coverage (batches 51–60) — new in this version:**
+- **Shell meta-rules:** --dry-run promotes ask→auto; --force demotes auto→ask; --insecure/--global/--system → ask; --version/--help → always auto
+- **Security HARD STOPs added:** eval "$REMOTE_SCRIPT", LD_PRELOAD/DYLD_INSERT_LIBRARIES injection, socat EXEC:bash (reverse shell), SSH -R remote port forwarding, data exfiltration patterns (cat /etc/... | nc)
+- **Low-level tools:** C/C++/LLVM (gcc/clang/clang-tidy/cppcheck/llvm-ar/llc/opt) → auto; Erlang/rebar3 (compile/test/dialyzer → auto; publish → ask); containerd/ctr/crictl (list → auto; pull/run → ask)
+- **Framework CLIs:** Rails, Django extras, Phoenix extras, .NET CLI → all covered with full rule sets
+- **Web server config:** nginx -t/caddy validate → auto; reload/restart → ask
+- **Ruby testing:** rspec/minitest/cucumber → auto; rubocop -a autocorrect → auto
+- **Python testing envs:** tox/nox (test → auto; publish → ask); pip-tools (pip-compile → auto; pip-sync → ask)
+- **Security scanners:** bandit/safety/pip-audit/dependency-check/gosec/semgrep local → auto; semgrep remote rules → ask
+- **Modern cryptography:** age (encrypt cwd → auto; decrypt → ask); sops (encrypt → auto; decrypt/edit → ask)
+- **ML/Data science:** wandb (login/sync → ask; offline → auto); DVC (repro/params/metrics → auto; push → ask); MLflow (serve → auto; artifacts download → ask)
+- **CI/CD:** Buildkite (start/upload → ask; meta-data get → auto); Jenkins CLI (localhost list → auto; build → ask)
+- **K8s quality:** kube-score/kubeval/kubesec/pluto/conftest/kyverno → all auto (local validation only)
+- **Service mesh:** istioctl analyze/validate → auto; install → ask; linkerd install → ask
+- **gRPC/API:** grpcurl (localhost read → auto; remote → ask); rover (localhost introspect → auto; publish → ask); openapi-generator local → auto; remote URL → ask
+- **Network:** tcpdump/tshark live capture → ask; reading pcap → auto; version managers rbenv/jenv/sdkman → auto
+- **Code coverage:** lcov/nyc/c8/go cover → all auto; outdated dep checkers (npm/cargo/bundle/pip) → all auto
+- **Observability:** vector validate/test → auto; otelcol validate → auto; both daemons → ask
+- **Terminal/shell:** tmux/screen/zellij (list/attach → auto; kill → ask); just/task (list → auto; recipe → classify by name); shfmt → auto; envsubst cwd → auto; supervisord/supervisorctl (status → auto; start/stop → ask)
+- **Database backup/restore:** pg_restore → ask (DB state); pg_restore -l → auto; mongorestore → ask; SQLite .dump → auto; Redis --rdb → auto
+- **70 new example table entries** and **10 new troubleshooting FAQ entries**
 
 **Behavior:**
 - Parallel agents (dispatching-parallel-agents): agent count auto-accepted in full; task assignment review auto-approved in full
