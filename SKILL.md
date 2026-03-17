@@ -72,6 +72,10 @@ This activates those settings at the start of every session without typing `/han
 | Careful, review before execution | `/hands-free partial` (review-checkpoints always on) |
 | First-time / unfamiliar codebase | `/hands-free off` (observe only, learn preferences) |
 | Shadow mode — build preferences before enabling | `/hands-free off` + `learning high` (watch and learn, then switch to full) |
+| Contributing to an open-source repo | `/hands-free partial` (review-checkpoints on) — cautious, no auto-push or auto-merge |
+| Debugging a production issue | `/hands-free off` or `/hands-free partial` — no auto-commit; every action needs review |
+| Refactoring a large codebase | `/hands-free full` + `review-checkpoints on` — speed + phase checkpoints before big runs |
+| Exploring a new codebase without coding | `/hands-free off` + `learning high` — observe decisions, build prefs for later |
 
 > **Quick start (most users):**
 > ```
@@ -1622,6 +1626,22 @@ Auto-commit uses `git add <specific files>` per task — it should never add fil
 - Check if another process modified them
 - Check `git status` before the next auto-commit
 - Use `/hands-free auto-commit off` to disable and commit manually
+
+### "Why is `git add -p` asking for confirmation?"
+
+`git add -p` launches an interactive terminal interface to review and stage individual hunks. This requires user input to navigate, so hands-free always asks before it runs — there's no way to auto-complete an interactive interface safely. Use `git add <specific-file>` (auto-pass) to stage entire files without interaction.
+
+### "Why is `git pull --rebase` asking in partial mode?"
+
+In partial mode, `git pull` and `git pull --rebase` are execution-type decisions — they modify the working tree and potentially rewrite local history. Only `git pull --ff-only` auto-passes in all modes (it's safe: can only fast-forward, never rewrites). If you want `git pull --rebase` to auto-pass, switch to full mode.
+
+### "Why is `cargo install --path .` asking?"
+
+Even when installing from the local cwd (`--path .`), cargo writes the binary to `~/.cargo/bin` — outside the current directory. This escapes cwd, so hands-free asks for confirmation. To suppress, run `cargo install --path . --root ./local-bin` (installs to cwd) or confirm the prompt.
+
+### "Why is `npm run deploy` asking?"
+
+`npm run` scripts are classified by their name: known-safe targets (`test`, `build`, `lint`, `format`, `typecheck`, `dev`) auto-pass. Targets named `deploy`, `publish`, `push`, `release`, `upload`, or any unfamiliar name trigger an ask. This prevents accidentally running deployment scripts. If your deploy script is safe for a specific project, add a CLAUDE.md override.
 
 ### "Hands-free blocked `deno run` — I just want to run a local script"
 
