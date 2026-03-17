@@ -475,6 +475,10 @@ Preferences stored in `~/.claude/skills/hands-free/preferences.md`. Records choi
 
 Claude reads CLAUDE.md at the start of each session. **`Default mode` / `Auto-commit` / `Learning` directives** are applied automatically at session start without the user needing to type any `/hands-free` commands. All other `# hands-free overrides` lines are natural-language rules parsed for each decision: if a rule says "never auto-accept X", X becomes a hard stop for this project. CLAUDE.md instructions take precedence over `preferences.md`.
 
+**CLAUDE.md vs mode conflict:** If CLAUDE.md defines a project-level rule like "always ask before git push" and the user activates `crazy-workspace`, the CLAUDE.md rule takes precedence for that project — git push remains a hard stop. CLAUDE.md overrides are stronger than mode settings, because the user explicitly configured them for the project.
+
+**`Default mode` is the initial state, not a maximum:** If CLAUDE.md says `Default mode: full` and the user types `/hands-free crazy-workspace`, crazy-workspace takes over immediately. The directive only sets the starting mode at session start — the user can always switch modes manually during the session.
+
 **`/hands-free learning` with no argument:** Prints the current learning level and threshold summary:
 ```
 Learning: high
