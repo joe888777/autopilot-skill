@@ -687,6 +687,8 @@ The "1 remaining" pause is the only mandatory pause the warning system introduce
 
 `/hands-free crazy-workspace` unlocks maximum-autonomy mode scoped to `./` (the current working directory). Designed for sandboxed environments, throwaway repos, or any workspace where speed matters more than caution.
 
+> **Warning:** Do NOT use crazy-workspace on production repositories, shared codebases, or any repo where accidental force-pushes, destructive resets, or unreviewed merges could impact others. The 5 universal hard stops (pipe-to-shell, chmod 777, secrets, rm -rf *, rm -rf .git) remain, but everything else is auto-approved without prompting.
+
 ### Activation
 
 ```
