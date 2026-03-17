@@ -620,6 +620,34 @@ A shell command is **scoped to the current directory** if it contains no paths t
 - `redis-cli get <key>`, `redis-cli keys <pattern>`, `redis-cli info`, `redis-cli monitor` → auto-pass if connecting to localhost (read-only local Redis); ask if connecting to a remote Redis host
 - `redis-cli set <key> <value>`, `redis-cli del <key>`, `redis-cli flushdb`, `redis-cli flushall` → ask (mutates data; `flushall` is especially destructive)
 - `pg_isready` → auto-pass (read-only health check for local PostgreSQL)
+- `pg_dump -h localhost ./backup.sql` / `pg_dump -U user mydb > ./backup.sql` → auto-pass (backs up local DB to cwd)
+- `pg_dump -h remote-host mydb` → ask (dumps from remote DB host)
+- `mongodump --out ./backup/ --db mydb` (localhost) → auto-pass (local MongoDB dump to cwd)
+- `mongodump --host remote-db --out ./backup/` → ask (remote MongoDB host)
+- `mongorestore ./backup/` (localhost) → auto-pass (restores local MongoDB from cwd backup)
+- `mysqldump -h localhost mydb > ./backup.sql` → auto-pass (local MySQL dump to cwd)
+- `mysqldump -h remote-host mydb` → ask (remote MySQL host)
+- `mysql -h localhost mydb < ./migration.sql` → auto-pass (local MySQL, cwd-scoped SQL file)
+- **Protocol Buffers / gRPC:**
+  - `protoc --go_out=./gen ./proto/*.proto` → auto-pass (cwd-scoped code generation)
+  - `buf lint ./proto` → auto-pass (cwd-scoped lint)
+  - `buf generate ./proto` → auto-pass (cwd-scoped code generation from `.proto` files)
+  - `buf build ./proto` → auto-pass (cwd-scoped)
+  - `buf push` → ask (pushes schema to Buf Schema Registry — external)
+  - `buf breaking` → auto-pass (reads and compares local proto files; read-only)
+- **GraphQL code generation:**
+  - `graphql-codegen`, `npx graphql-codegen --config ./codegen.yml` → auto-pass (generates client code from schema; cwd-scoped)
+  - `apollo codegen:generate ./src/__generated__` → auto-pass (cwd-scoped)
+  - `rover graph check`, `rover subgraph check` → ask (checks against Apollo Studio — external API call)
+  - `rover graph publish`, `rover subgraph publish` → ask (publishes schema to Apollo Studio)
+- **OpenAPI/Swagger code generation:**
+  - `openapi-generator-cli generate -i ./openapi.yaml -g typescript-fetch -o ./src/api` → auto-pass (cwd-scoped)
+  - `swagger-codegen generate -i ./swagger.json -l python -o ./client` → auto-pass (cwd-scoped)
+- **Snapshot testing update:**
+  - `jest --updateSnapshot` / `jest -u` → ask (updates committed snapshot files — silently overwrites test baselines; may mask regressions)
+  - `vitest --update-snapshots` / `vitest -u` → ask (same reason)
+  - `playwright test --update-snapshots` → ask (updates visual regression baselines)
+  - Note: reviewing and then manually running snapshot updates is intentional; auto-approving risks silently accepting UI regressions
 - `hatch build` / `hatch run <script>` / `hatch env create` → auto-pass (cwd-scoped, Python Hatch build tool)
 - `python -m build` → auto-pass (cwd-scoped, PyPA build — produces dist/ artifacts)
 - `flit build` / `flit install --symlink` → auto-pass (cwd-scoped, Python Flit build)
