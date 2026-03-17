@@ -1103,9 +1103,20 @@ Record a preference whenever the user **manually chooses** an option — whether
 
 ### Decision Priority
 
-1. High-confidence preference → use silently
-2. Medium-confidence preference → use + announce source
-3. No preference → use recommended + announce
+1. **High-confidence preference** → use silently, even if it differs from the skill's recommendation. The preference represents the user's actual historical choice, which overrides the default recommendation.
+2. **Medium-confidence preference** → use + announce source: `Going with [option] (your preference)`. If the preference differs from the skill's recommendation, add: `(overrides skill's default: [recommended option])` so the user knows.
+3. **No preference** → use the skill's recommendation + announce: `Going with [option] (recommended) — [reason]`
+4. **No preference + no recommendation** → apply "When There Is No Recommended Option" rules
+
+**Worked example:**
+
+The brainstorming skill presents: `Approach 1: Monolith (recommended), Approach 2: Microservices, Approach 3: Modular monolith`.
+
+User has a high-confidence preference: `brainstorming-approaches → "Approach 3: Modular monolith" (7x, high)`.
+
+Hands-free applies: the preference (Approach 3) wins over the skill's recommendation (Approach 1). Silent: no announcement. Session log: `[brainstorming] approach 3 (preference, high-confidence)`.
+
+The user later asks `/hands-free explain` → shows that preference overrode recommendation, and that the preference was recorded 7x with high confidence.
 
 ### Recording Format
 
