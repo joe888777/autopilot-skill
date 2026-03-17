@@ -67,8 +67,8 @@ cp -r autopilot-skill ~/.claude/skills/hands-free
 | `curl \| bash` / pipe-to-shell | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `chmod 777` / privilege escalation | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Secrets in staged files | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
-| `rm -rf *` | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
-| `rm -rf .git` | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| `rm -rf *` | ask | ask | ask | **HARD STOP** |
+| `rm -rf .git` | ask | ask | ask | **HARD STOP** |
 
 ### Example
 
