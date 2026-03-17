@@ -398,6 +398,13 @@ When enabled (`/hands-free auto-commit on`), automatically commit changes at nat
 4. Announce: "Auto-committed: `<short message>`"
 5. Log it in the session log
 
+**When auto-commit and review checkpoint coincide:** Auto-commit fires first (completing the current phase), then the review checkpoint fires to announce the phase transition. This ensures the commit reflects the completed phase before the checkpoint's summary is presented.
+
+Example sequence:
+1. Executing-plans batch 3 complete
+2. Auto-commit: `feat: implement batch 3 — user form validation`
+3. Review checkpoint: `--- Review Checkpoint: Execution Complete ---`
+
 ### Safety Rules
 
 - **Never amend** existing commits — always create new ones; `--amend` is forbidden in auto-commit regardless of mode
