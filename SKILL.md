@@ -2657,8 +2657,10 @@ Multiple scanners may apply to the same repo (e.g., a Python + Rust mixed projec
 | Severity level | Action |
 |---|---|
 | **Critical** | Block auto-commit; announce: `[security] Auto-commit blocked — N critical vulnerabilities found`. Do not stage or commit until the user resolves or explicitly overrides. |
-| **High** | Warn but do not block by default; announce: `[security] Warning — N high-severity findings. Review .claude/security-scan.log`. This behavior is configurable: add `Security scan: block on high` to the project's `# hands-free overrides` in CLAUDE.md to promote high findings to blocking. |
+| **High** | Warn but do not block by default; announce: `[security] Warning — N high-severity findings. Review .claude/security-scan.log`. Promote to blocking with `block-on: high` in the project's `# hands-free security` CLAUDE.md section. |
 | **Medium / Low / Info** | Log only; do not announce or block. |
+
+The blocking threshold, disabled scanners, and false-positive whitelists are all configurable via the `# hands-free security` section in CLAUDE.md. See [CLAUDE.md Override Reference — Security Overrides](#security-overrides) for the full syntax and accepted values.
 
 **Scanner not installed:** If a scanner binary is not found (command not found / exit code 127), skip it gracefully — log `[scanner-name] not installed — skipped` to `.claude/security-scan.log` and continue. Do NOT block the auto-commit solely because a scanner is missing.
 
@@ -3610,6 +3612,34 @@ Add a comment explaining why an override exists — future-you will thank presen
 # (staging DB is a local Docker container, not a real remote)
 - psql -h localhost:5433 → auto-pass
 ```
+
+### Security Overrides
+
+Add a `# hands-free security` section to CLAUDE.md to configure security scanning behavior for the project. This section is read once at session start, alongside `# hands-free overrides`.
+
+**Example:**
+
+```markdown
+# hands-free security
+- block-on: high           # block auto-commit on high AND critical (default: critical)
+- skip-scanners: cargo-audit, bandit   # skip specific scanners for this project
+- allow-patterns: fake-token, test-credential   # whitelist these literal strings
+```
+
+**Supported keys:**
+
+| Key | Accepted values | Default | Effect |
+|---|---|---|---|
+| `block-on` | `critical`, `high`, `none` | `critical` | Sets the minimum severity that blocks auto-commit. `critical` — only critical findings block (default). `high` — high and critical findings block. `none` — never block; all findings are warn-only. |
+| `skip-scanners` | Comma-separated scanner names: `cargo-audit`, `bandit`, `npm-audit`, `pip-audit`, `semgrep` | _(none)_ | Disables the listed scanners entirely for this project. Skipped scanners are logged as `[scanner-name] skipped — disabled by CLAUDE.md`. |
+| `allow-patterns` | Comma-separated literal strings | _(none)_ | Whitelists literal strings that appear in scanner output. Findings whose message contains a whitelisted string are downgraded to Info and never block, even if the base severity is critical. Use for known false positives (e.g., test fixtures, documentation strings). |
+
+**Notes:**
+
+- `block-on: none` never suppresses logging — all findings still appear in `.claude/security-scan.log`.
+- `skip-scanners` accepts the canonical names listed in the table above (case-insensitive). Unknown names are ignored with a startup warning.
+- `allow-patterns` matches are substring matches against the full finding message reported by the scanner. Patterns are matched literally (not as regexes).
+- The `# hands-free security` section is project-scoped. It cannot appear in `~/.claude/CLAUDE.md` (user-global security policy is not overridable per-user; use the project section only).
 
 ---
 
