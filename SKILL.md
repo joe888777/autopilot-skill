@@ -1266,10 +1266,9 @@ A shell command is **scoped to the current directory** if it contains no paths t
   - `pip-audit --fix` → ask (auto-upgrades vulnerable packages — modifies active environment)
   - `dependency-check --scan ./` → auto-pass (OWASP dependency-check; cwd-scoped; read-only; writes HTML report to cwd)
   - `dependency-check --scan ./ --out ./reports/` → auto-pass (cwd-scoped output)
-  - `semgrep ./` → auto-pass (cwd-scoped SAST; read-only)
+  - `semgrep ./` / `semgrep --config ./rules/ ./` → auto-pass (cwd-scoped SAST; local rules only — semgrep without `--config` succeeds only when a local `.semgrep.yml` or `rules/` dir exists)
   - `semgrep --config auto ./` → ask (downloads rules from Semgrep registry; network call then cwd scan; privacy concern: may upload code snippets for rule matching — ask first)
   - `semgrep --config p/python ./` → ask (same; downloads a specific ruleset from remote)
-  - `semgrep --config ./rules/ ./` → auto-pass (uses local rules only; purely cwd-scoped)
 - **Documentation generation:**
   - `mdbook build` → auto-pass (cwd-scoped, generates static site in `./book/`)
   - `mdbook serve` → auto-pass (local doc server; localhost only)
@@ -2760,13 +2759,15 @@ If no CLAUDE.md directive exists (or the section is absent), start silently in `
 
 **User command vs CLAUDE.md conflict:** When the user types a `/hands-free` command that contradicts a CLAUDE.md directive, **the user command always wins for the current session**. Example: CLAUDE.md says `Auto-commit: off`, but user types `/hands-free auto-commit on` → auto-commit is now on for this session. The CLAUDE.md directive applies next session unless the user types the same override again. This "session override" principle applies to all settings except CLAUDE.md project-level security rules (e.g., "psql postgresql://prod must always ask") — those are project constraints that cannot be overridden by a user command.
 
-**Showing active CLAUDE.md overrides in `/hands-free status`:** If project-level overrides are active, add a section:
+**Showing active CLAUDE.md overrides in `/hands-free status`:** If project-level overrides are active, add a section. Settings from both `# hands-free overrides` and `# hands-free security` sections are included:
 ```
-  CLAUDE.md overrides (3 active):
+  CLAUDE.md overrides (4 active):
     Default mode: full (applied at session start)
     Auto-commit: on (applied at session start)
     psql postgresql://prod → always ask (security rule, cannot override)
+    [security] block-on: high; skip-scanners: cargo-audit
 ```
+If no `# hands-free security` section is configured (or all keys are at their default values), no `[security]` line appears.
 
 **`/hands-free learning` with no argument:** Prints the current learning level and threshold summary:
 ```
