@@ -2544,6 +2544,10 @@ When enabled (`/hands-free auto-commit on`), automatically commit changes at nat
 
 ### How It Works
 
+0. **Pre-commit checks (before staging anything):**
+   - Run the **Secrets Detection** check (see [Secrets Detection](#secrets-detection)) against all files that would be staged. If a secret is detected, abort and announce — do not stage or commit.
+   - Run **Security Scanning** (see [Security Scanning](#security-scanning)) for applicable project types (cargo-audit, bandit, npm-audit, pip-audit, semgrep). If a scanner returns critical-severity findings, abort and announce `[security] Auto-commit blocked — N critical vulnerabilities found` — do not stage or commit.
+   - If all checks pass, proceed to step 1.
 1. Stage only the relevant changed files (`git add <specific files>`) — never `git add -A` or `git add .`. "Relevant files" = files that were modified as part of the current task being committed; determined by tracking which files Claude edited or created during the current task. Do NOT stage: files you don't know the purpose of, files still under active work, or files that belong to a different logical unit.
 2. Determine commit message style: run `git log --oneline -5` to see recent messages; match the format (e.g., if repo uses `feat:` / `fix:` prefixes, use those; if it uses plain sentences, match that). If the repo has no prior commits (empty history), use the `feat:` / `fix:` conventional commits format as the default style.
 3. Infer commit message from what changed:
