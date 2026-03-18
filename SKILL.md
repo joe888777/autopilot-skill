@@ -110,6 +110,7 @@ This activates those settings at the start of every session without typing `/han
 | Language RCE (`python -c exec`, `deno run <url>`) | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | `chmod 777` / privilege escalation | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
 | Secrets detected in staged files | **HARD STOP** | **HARD STOP** | **HARD STOP** | **HARD STOP** |
+| Critical vulnerabilities found (pre-commit scan) | **HARD STOP** *(configurable via `block-on:`)* | **HARD STOP** *(configurable)* | **HARD STOP** *(configurable)* | **HARD STOP** *(configurable)* |
 | MCP read operations (fetching data, listing resources) | auto | auto | ask | auto |
 | MCP write operations (creating pages, posting messages, modifying records) | **ask** | **ask** | **ask** | **ask** |
 | `git pull` / `git pull --rebase` | auto | **ask** | ask | auto |
@@ -3826,7 +3827,7 @@ All scans are skipped; auto-commit proceeds normally and `.claude/security-postu
 - `block-on: none` never suppresses logging — all findings still appear in `.claude/security-scan.log`.
 - `skip-scanners` accepts the canonical names listed in the table above (case-insensitive). Unknown names are ignored with a startup warning.
 - `allow-patterns` matches are substring matches against the full finding message reported by the scanner. Patterns are matched literally (not as regexes).
-- The `# hands-free security` section is project-scoped. It cannot appear in `~/.claude/CLAUDE.md` (user-global security policy is not overridable per-user; use the project section only).
+- The `# hands-free security` section is project-scoped. Place it in the project's CLAUDE.md only — it has no effect in `~/.claude/CLAUDE.md`. There is no user-global security policy; security scan behavior must be configured per project.
 
 ---
 
