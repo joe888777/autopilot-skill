@@ -2605,7 +2605,7 @@ Content signals in staged diffs (case-insensitive):
 - **DATABASE_URL with embedded credentials:** `DATABASE_URL=postgresql://user:password@`, `DATABASE_URL=mysql://user:password@`, `DATABASE_URL=postgres://user:password@` — explicit environment variable assignment with credentials in the URI
 - **PEM blocks in any file extension:** `-----BEGIN` marker in any file (not just `.pem`) — private keys and certificates are often embedded in `.txt`, `.conf`, `.js`, `.ts`, `.env`, and other files
 - **Base64-encoded HTTP credentials:** `Authorization: Basic ` followed by a base64 string hardcoded in source — indicates embedded credentials rather than a runtime-injected value
-- **High-entropy strings:** Strings that appear to be randomly generated tokens (alphanumeric + special chars, length >32, not a known placeholder pattern) — applies to assignment RHS values and string arguments, not natural-language prose
+- **High-entropy strings:** Strings that appear to be randomly generated tokens (>4.5 bits/char, length >20, not a known placeholder pattern) — applies to assignment RHS values and string arguments, not natural-language prose
 
 **False positive reduction:** Do NOT fire on:
 - Lines prefixed with `#` (comments) — these are documentation
