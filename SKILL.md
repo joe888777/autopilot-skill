@@ -3329,7 +3329,7 @@ Full report: .claude/security-report.md
 No security scan data available. Auto-commit will run scans automatically, or trigger manually with `/hands-free security --scan`
 ```
 
-**`/hands-free security --scan`** forces a fresh scan immediately without waiting for an auto-commit. Runs all available scanners (cargo-audit, npm-audit, pip-audit, safety, trivy, grype, bandit, semgrep — skip any that are not installed) and writes results to `.claude/security-scan.log`. Unavailable scanners are silently skipped; if no scanners are available at all, print a notice listing what to install.
+**`/hands-free security --scan`** forces a fresh scan immediately without waiting for an auto-commit. Runs all available scanners (cargo-audit, npm-audit, pip-audit, bandit, semgrep — skip any that are not installed) and writes results to `.claude/security-scan.log`. Unavailable scanners are silently skipped; if no scanners are available at all, print a notice listing what to install.
 
 After every run (both `--scan` and the plain summary view), write the formatted report to `.claude/security-report.md` for easy sharing or CI artifact upload.
 
