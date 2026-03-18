@@ -2634,7 +2634,7 @@ Run security scanners before every auto-commit. Detection, execution, and outcom
 Multiple scanners may apply to the same repo (e.g., a Python + Rust mixed project). Run all that apply, in the order listed above.
 
 **Execution:**
-1. Run each applicable scanner as a non-blocking subprocess before staging files. For bandit, use `bandit -r ./src` if `./src` exists, otherwise fall back to `bandit -r .` — the fallback is automatic; no user decision required.
+1. Run each applicable scanner as a subprocess before staging files, with a 30-second per-scanner timeout. For bandit, use `bandit -r ./src` if `./src` exists, otherwise fall back to `bandit -r .` — the fallback is automatic; no user decision required. If a scanner exceeds the 30-second budget, kill it, log `[scanner-name] timed out after 30s — skipped` to `.claude/security-scan.log`, and continue with the next scanner. A timeout is treated the same as "not installed" — it does not block auto-commit.
 2. Collect stdout + stderr from each scanner.
 3. Append a timestamped record for each scanner to `.claude/security-scan.log` (create the file and `.claude/` directory if they do not exist). Format per scanner run:
    ```
@@ -2708,6 +2708,7 @@ The blocking threshold, disabled scanners, and false-positive whitelists are all
 | Security scanner not installed | Skip that scanner gracefully; log `[scanner-name] not installed — skipped` to `.claude/security-scan.log`; do not block auto-commit |
 | Semgrep `./rules/` directory missing | Skip semgrep gracefully; log `[semgrep] no local rules directory — skipped` to `.claude/security-scan.log`; do not block auto-commit |
 | `.claude/` directory inaccessible (permissions) | Skip security scan entirely; log warning to stdout; auto-commit proceeds without scan |
+| Scanner exceeds 30-second timeout | Kill the scanner process; log `[scanner-name] timed out after 30s — skipped`; continue with remaining scanners; do not block auto-commit |
 
 ### Session Log Entry
 
@@ -3777,6 +3778,14 @@ Add a `# hands-free security` section to CLAUDE.md to configure security scannin
 | `block-on` | `critical`, `high`, `none` | `critical` | Sets the minimum severity that blocks auto-commit. `critical` — only critical findings block (default). `high` — high and critical findings block. `none` — never block; all findings are warn-only. |
 | `skip-scanners` | Comma-separated scanner names: `cargo-audit`, `bandit`, `npm-audit`, `pip-audit`, `semgrep` | _(none)_ | Disables the listed scanners entirely for this project. Skipped scanners are logged as `[scanner-name] skipped — disabled by CLAUDE.md`. |
 | `allow-patterns` | Comma-separated literal strings | _(none)_ | Whitelists literal strings that appear in scanner output. Findings whose message contains a whitelisted string are downgraded to Info and never block, even if the base severity is critical. Use for known false positives (e.g., test fixtures, documentation strings). |
+
+**Disabling security scanning entirely (`--no-security` equivalent):**
+To skip all scanning for a project (equivalent to a `--no-security` flag), list all five scanners in `skip-scanners`:
+```markdown
+# hands-free security
+- skip-scanners: cargo-audit, bandit, npm-audit, pip-audit, semgrep
+```
+All scans are skipped; auto-commit proceeds normally and `.claude/security-posture.json` is not updated.
 
 **Notes:**
 
