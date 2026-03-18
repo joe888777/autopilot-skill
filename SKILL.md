@@ -4079,17 +4079,17 @@ Yes, intentionally. Live packet capture (`tcpdump`, `tshark` with `-i`) captures
 Add the false positive pattern to your project's CLAUDE.md:
 ```markdown
 # hands-free security
-allow-patterns: my-false-positive-package
+- allow-patterns: my-false-positive-package
 ```
 Or disable the scanner entirely:
 ```markdown
 # hands-free security
-skip-scanners: bandit
+- skip-scanners: bandit
 ```
 To never block (warnings only):
 ```markdown
 # hands-free security
-block-on: none
+- block-on: none
 ```
 
 ### "Security scan is not running — no security entries in the commit log"
@@ -4109,12 +4109,12 @@ Semgrep is only invoked when at least one project-type indicator is present (`Ca
 Set `block-on: none` in the project's CLAUDE.md `# hands-free security` section to turn scanning into warn-only mode. The scan still runs and findings are logged, but auto-commit is never blocked:
 ```markdown
 # hands-free security
-block-on: none
+- block-on: none
 ```
 Or raise the threshold to only block on critical (default) or high:
 ```markdown
 # hands-free security
-block-on: critical
+- block-on: critical
 ```
 
 ### "The `/hands-free security` command shows 'No security scan data available'"
