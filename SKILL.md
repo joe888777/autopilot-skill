@@ -2651,6 +2651,23 @@ Multiple scanners may apply to the same repo (e.g., a Python + Rust mixed projec
    [YYYY-MM-DD HH:MM:SS] [scanner-name] skipped — no rules directory
    ```
 4. Ensure `.claude/security-scan.log` is listed in the repo's `.gitignore` on the first scan of a session (add the line if absent; do NOT commit the `.gitignore` change as a separate commit — include it with the next auto-commit that would have occurred anyway, or announce and skip if there is no pending auto-commit).
+5. After aggregating results from all scanners that ran (non-skipped), compute a security posture grade from the total critical and high counts across all scanners:
+   - **A**: 0 critical, fewer than 5 high
+   - **B**: 0 critical, 5–15 high
+   - **C**: 1–2 critical
+   - **D**: 3 or more critical
+   - **F**: any scanner exited with an error (non-zero exit that is not a "findings" exit code), or the scan could not complete
+   Write the result to `.claude/security-posture.json` (create or overwrite):
+   ```json
+   {
+     "grade": "A",
+     "critical": 0,
+     "high": 2,
+     "medium": 5,
+     "scanned_at": "YYYY-MM-DD HH:MM:SS"
+   }
+   ```
+   This file is read by `/hands-free status` to populate the `Security:` line. If the file does not exist (no scan has run yet), `/hands-free status` shows `Security: unknown (run /hands-free security)`. Ensure `.claude/security-posture.json` is listed in `.gitignore` (add alongside `.claude/security-scan.log` if absent).
 
 **Severity handling:**
 
@@ -2844,12 +2861,29 @@ Hands-Free Status
   Review checkpoints:   off
   Paused:               no
   Loop-aware:           yes (iteration 3/15)
+  Security:             A (0 critical, 2 high, 5 medium)
 
   Session decisions:    14 auto-accepted, 1 paused
   Preferences loaded:   3 rules (2 high, 1 medium)
 
   Universal hard stops: curl|bash, chmod 777, secrets-in-commit, rm -rf *, rm -rf .git
   Mode hard stops:      git push, git merge, git reset --hard (paused in this mode)
+```
+
+The `Security:` line shows the grade and vulnerability counts from the last successful scan run. The grade scale is:
+
+| Grade | Criteria |
+|---|---|
+| A | 0 critical, fewer than 5 high |
+| B | 0 critical, 5–15 high |
+| C | 1–2 critical |
+| D | 3 or more critical |
+| F | Scan failed or could not complete |
+
+The score is read from `.claude/security-posture.json`, which is updated after each scan run (see [Security Scanning](#security-scanning)). If no scan has been run yet, the line shows:
+
+```
+  Security:             unknown (run /hands-free security)
 ```
 
 If hands-free is off:
