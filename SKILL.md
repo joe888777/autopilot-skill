@@ -25,6 +25,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 > | Auto-commit at milestones | `/hands-free auto-commit on` |
 > | Pause before phase transitions | `/hands-free review-checkpoints on` |
 > | Preview how a command would be classified | `/hands-free check <command>` |
+> | View vulnerability summary | `/hands-free security` |
 >
 > **Always blocked (all modes):** `curl|bash`, `source <(curl)`, language RCE (`python -c exec`, `node -e eval`, `deno run <url>`), `chmod 777`, secrets in commits, `rm -rf *`, `rm -rf .git`
 
@@ -51,6 +52,8 @@ Auto-accept recommended options from any skill without pausing. Works with super
 /hands-free log          # show session decisions (recent events; use --full for complete log)
 /hands-free status       # show current mode + all settings
 /hands-free check <cmd>  # would this command auto-pass? Shows classification without running it
+/hands-free security     # show vulnerability summary from last security scan
+/hands-free security --scan  # force a fresh security scan immediately
 ```
 
 **Mode persistence:** Hands-free mode is **session-scoped** — it resets at the start of each new conversation. For consistent defaults, add to the project's CLAUDE.md:
@@ -3252,6 +3255,49 @@ The empty scaffold after reset:
 ```
 
 If `preferences.md` does not exist yet (first-time use), it is created on first recorded preference. A missing file is treated identically to the empty scaffold — do not error or warn on missing file.
+
+## `/hands-free security`
+
+When invoked, display the current vulnerability summary from the last security scan. Output is organized by severity (Critical → High → Medium → Low), with one finding per line showing the scanner, CVE/advisory ID, affected package with version, and fix version where available.
+
+Data source: `.claude/security-scan.log` — this file is populated automatically by the auto-commit security scanning hook (runs before each auto-commit). It is also populated on demand by `/hands-free security --scan`.
+
+**Output format:**
+
+```
+Security Report (last scan: 2026-03-18 13:42 UTC)
+
+CRITICAL (2)
+  cargo-audit: RUSTSEC-2024-0001 — openssl 0.10.55 → fix: upgrade to 0.10.57
+  cargo-audit: RUSTSEC-2023-0044 — openssl 0.10.55 (no fix available)
+
+HIGH (1)
+  npm-audit: CVE-2024-12345 — lodash@4.17.20 → fix: upgrade to 4.17.21
+
+MEDIUM (3)
+  pip-audit: PYSEC-2024-100 — requests@2.28.0 → fix: upgrade to 2.28.2
+  pip-audit: PYSEC-2024-101 — urllib3@1.26.14 → fix: upgrade to 1.26.19
+  npm-audit: CVE-2024-56789 — semver@5.7.1 → fix: upgrade to 5.7.2
+
+LOW (0)
+  (none)
+
+Grade: C  (2 critical, 1 high, 3 medium, 0 low)
+Full report: .claude/security-report.md
+```
+
+**Grade scale:** A = 0 critical/high; B = 0 critical, ≤3 high; C = 1–3 critical OR ≤10 high; D = 4+ critical; F = 10+ critical.
+
+**If no scan has been run yet**, output:
+```
+No security scan data available. Auto-commit will run scans automatically, or trigger manually with `/hands-free security --scan`
+```
+
+**`/hands-free security --scan`** forces a fresh scan immediately without waiting for an auto-commit. Runs all available scanners (cargo-audit, npm-audit, pip-audit, safety, trivy, grype, bandit, semgrep — skip any that are not installed) and writes results to `.claude/security-scan.log`. Unavailable scanners are silently skipped; if no scanners are available at all, print a notice listing what to install.
+
+After every run (both `--scan` and the plain summary view), write the formatted report to `.claude/security-report.md` for easy sharing or CI artifact upload.
+
+**`.claude/security-report.md`** is listed in `.gitignore` — it is a generated artifact and should not be committed.
 
 ## Ralph Loop Integration
 
