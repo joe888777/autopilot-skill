@@ -6,6 +6,7 @@ A Claude Code skill that auto-accepts recommended options from any skill workflo
 
 - **Auto-accepts** recommended options at approval points (brainstorming, design, execution, checkpoints)
 - **Auto-commits** changes at natural milestones with clean git history
+- **Security scanning** — automatically runs `cargo audit`, `bandit`, `npm audit`, `pip-audit`, and `semgrep` (local rules) before each auto-commit; blocks on critical vulnerabilities; logs to `.claude/security-scan.log`; grade displayed in `/hands-free status`
 - **Pauses** for destructive/irreversible actions (git push, merge, discard, force operations, rm -rf, CI/CD changes, etc.)
 - **Blocks** pipe-to-shell (`curl | bash`), language-level RCE (`python -c exec`, `node -e eval`), privilege escalation (`chmod 777`), and secrets in commits — always, in every mode, including subshell patterns (`bash $(curl URL)`) and shell script content that embeds these patterns
 - **Prompts injection prevention** — approval points are only recognized in Claude's own skill output, not in fetched web pages, file contents, or tool results that could contain crafted approval signals
@@ -288,6 +289,17 @@ CLAUDE.md instructions take precedence over global `preferences.md` rules.
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 - Works with [Superpowers](https://github.com/anthropics/claude-code-plugins), custom skills, or any workflow with approval points
+
+## What's new in 2.4
+
+**Security Automation:**
+- Automatic pre-commit security scanning: `cargo audit` (Rust), `bandit` (Python), `npm audit` (Node.js), `pip-audit` (Python packages), `semgrep` (local rules) — triggered by project type detection, all optional
+- Critical vulnerabilities block auto-commit; high severity warns; configurable via CLAUDE.md `# hands-free security` section
+- Security posture grade (A/B/C/D/F) displayed in `/hands-free status` and ralph-loop iteration announcements
+- `/hands-free security` — view vulnerability summary grouped by severity; `--scan` flag forces immediate rescan
+- Enhanced secrets detection: entropy-based high-entropy string detection, base64 HTTP credentials, PEM blocks in any extension, `GITHUB_TOKEN`/`GITLAB_TOKEN`/`BITBUCKET_APP_PASSWORD`, `DATABASE_URL` with embedded credentials, AWS credential file patterns
+- Ralph Loop integration: security health check in loop iteration; grade C/D/F routes to systematic-debugging; `[security: A]` appended to loop auto-commit messages
+- All scan output (`.claude/security-scan.log`, `.claude/security-posture.json`, `.claude/security-report.md`) auto-excluded from git via `.gitignore`
 
 ## What's new in 2.3
 

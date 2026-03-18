@@ -3335,6 +3335,105 @@ After every run (both `--scan` and the plain summary view), write the formatted 
 
 **`.claude/security-report.md`** is listed in `.gitignore` — it is a generated artifact and should not be committed.
 
+## Security Automation
+
+Hands-free automatically runs security scans before every auto-commit and exposes vulnerability data through `/hands-free status` and `/hands-free security`. The system is additive — security scanning never changes existing auto-commit behavior; it only adds the scan check before staging.
+
+### Supported Scanners
+
+| Scanner | Trigger Condition | What It Finds |
+|---|---|---|
+| `cargo audit` | `Cargo.toml` present | Known vulnerabilities in Rust crate dependencies (RustSec Advisory Database) |
+| `bandit` | `*.py` files present | Python security anti-patterns (hardcoded passwords, SQL injection, subprocess misuse) |
+| `npm audit` | `package.json` present | Known vulnerabilities in npm package dependencies (GitHub Advisory Database) |
+| `pip-audit` | `requirements.txt` or `pyproject.toml` present | Known vulnerabilities in Python package dependencies |
+| `semgrep` | Any of the above matched AND `./rules/` directory exists | Custom static analysis rules defined in the local `./rules/` directory |
+
+All scanners are optional — if a scanner is not installed, it is skipped silently with a log entry. Multiple scanners may run for mixed-language projects (e.g., both `cargo audit` and `npm audit` for a Rust + TypeScript project).
+
+**Semgrep restriction:** Semgrep is only invoked with `--config ./rules/` (local rules). Remote configs (`--config auto`, `--config p/...`, or any URL) are never used to protect privacy.
+
+### Severity Thresholds and Blocking Behavior
+
+| Severity | Default Behavior | With `block-on: high` |
+|---|---|---|
+| **Critical** | Block auto-commit; announce `[security] Auto-commit blocked — N critical vulnerabilities found` | Block (same) |
+| **High** | Warn only; announce `[security] Warning — N high-severity findings`; auto-commit proceeds | Block auto-commit |
+| **Medium / Low / Info** | Log to `.claude/security-scan.log` only; no announcement | Log only (same) |
+
+The blocking threshold is configurable per project via CLAUDE.md. See [Security Overrides](#security-overrides) below.
+
+### Security Posture Grade
+
+After each scan, hands-free computes a posture grade from the total findings across all scanners:
+
+| Grade | Criteria |
+|---|---|
+| **A** | 0 critical, fewer than 5 high |
+| **B** | 0 critical, 5–15 high |
+| **C** | 1–2 critical |
+| **D** | 3 or more critical |
+| **F** | Any scanner exited with an error (non-findings error), or scan could not complete |
+
+The grade is written to `.claude/security-posture.json` and displayed in `/hands-free status` and (in loop mode) in iteration start announcements and auto-commit messages.
+
+### Scan Output Files
+
+| File | Purpose | Committed? |
+|---|---|---|
+| `.claude/security-scan.log` | Timestamped full output from every scanner run, including skips and errors | No — auto-added to `.gitignore` |
+| `.claude/security-posture.json` | Current grade, counts, and last scan timestamp (read by `/hands-free status`) | No — auto-added to `.gitignore` |
+| `.claude/security-report.md` | Human-readable formatted report; written after every `/hands-free security` run | No — auto-added to `.gitignore` |
+
+All three files are automatically added to `.gitignore` on first scan.
+
+### `/hands-free security` Command
+
+Run `/hands-free security` to view the current vulnerability summary:
+
+```
+Security Report (last scan: 2026-03-18 13:42 UTC)
+
+CRITICAL (2)
+  cargo-audit: RUSTSEC-2024-0001 — openssl 0.10.55 → fix: upgrade to 0.10.57
+  cargo-audit: RUSTSEC-2023-0044 — openssl 0.10.55 (no fix available)
+
+HIGH (1)
+  npm-audit: CVE-2024-12345 — lodash@4.17.20 → fix: upgrade to 4.17.21
+
+MEDIUM (3)
+  pip-audit: PYSEC-2024-100 — requests@2.28.0 → fix: upgrade to 2.28.2
+  ...
+
+Grade: C  (2 critical, 1 high, 3 medium, 0 low)
+Full report: .claude/security-report.md
+```
+
+Add `--scan` to force a fresh scan immediately: `/hands-free security --scan`.
+
+### CLAUDE.md Security Override Syntax
+
+Add a `# hands-free security` section to your project's CLAUDE.md to customize scanning:
+
+```markdown
+# hands-free security
+block-on: high
+skip-scanners: cargo-audit, bandit
+allow-patterns: test_credentials, example_token
+```
+
+| Option | Values | Effect |
+|---|---|---|
+| `block-on` | `critical` (default), `high`, `none` | Severity level that blocks auto-commit |
+| `skip-scanners` | Comma-separated scanner names | Disable specific scanners for this project |
+| `allow-patterns` | Comma-separated strings | Whitelist specific false-positive patterns |
+
+**`block-on: none`** — warn only, never block auto-commit regardless of findings. Useful for projects in early development where you want visibility without blocking.
+
+**`skip-scanners`** — accepted values: `cargo-audit`, `bandit`, `npm-audit`, `pip-audit`, `semgrep`, `safety`, `trivy`, `grype`.
+
+**`allow-patterns`** — strings that, if found in a finding's description or package name, suppress that finding from blocking. They are still logged.
+
 ## Ralph Loop Integration
 
 Hands-free is designed to work with ralph-loop (`/ralph-loop`) and superpowers together. When a ralph-loop is active (`.claude/.ralph-loop.local.md` exists), hands-free enters **loop-aware mode** automatically.
@@ -3974,6 +4073,53 @@ Yes, intentionally. Live packet capture (`tcpdump`, `tshark` with `-i`) captures
 ### "`pip-sync` is blocked — I just want to install from my requirements.txt"
 
 `pip-sync` modifies your active Python environment (uninstalls packages not in requirements.txt in addition to installing those that are). This writes outside cwd (to the venv or system Python) and can break other projects that share the same environment. Use `pip-sync --dry-run ./requirements.txt` (auto-pass) to preview the changes, then confirm manually. For cwd-isolated environments (`uv venv .venv`), hands-free still asks because pip-sync modifies the environment, not just cwd files.
+
+### "Security scan is blocking my auto-commit for a false positive"
+
+Add the false positive pattern to your project's CLAUDE.md:
+```markdown
+# hands-free security
+allow-patterns: my-false-positive-package
+```
+Or disable the scanner entirely:
+```markdown
+# hands-free security
+skip-scanners: bandit
+```
+To never block (warnings only):
+```markdown
+# hands-free security
+block-on: none
+```
+
+### "Security scan is not running — no security entries in the commit log"
+
+Check: (1) Is auto-commit enabled? (`/hands-free auto-commit on` or `Auto-commit: on` in CLAUDE.md). Security scans only run before auto-commits. (2) Run `/hands-free security --scan` to trigger a manual scan and check `.claude/security-scan.log` for skipped scanners. (3) Verify the scanner is installed: `which cargo-audit`, `which bandit`, `which npm`, `which pip-audit`.
+
+### "`.claude/security-posture.json` is showing a stale grade"
+
+The posture file is only updated when a scan runs (before auto-commit or via `/hands-free security --scan`). Run `/hands-free security --scan` to refresh the grade. If the file is missing, `/hands-free status` shows `Security: unknown (run /hands-free security)`.
+
+### "Semgrep is always skipped — I have a `./rules/` directory"
+
+Semgrep is only invoked when at least one project-type indicator is present (`Cargo.toml`, `*.py` files, `package.json`, or `requirements.txt`). Verify one of these exists. Also confirm the rules directory contains `*.yaml` or `*.yml` rule files — an empty `./rules/` directory causes semgrep to exit without findings (exit 0), which is not the same as a skip.
+
+### "Security auto-commit blocking is too aggressive for this project"
+
+Set `block-on: none` in the project's CLAUDE.md `# hands-free security` section to turn scanning into warn-only mode. The scan still runs and findings are logged, but auto-commit is never blocked:
+```markdown
+# hands-free security
+block-on: none
+```
+Or raise the threshold to only block on critical (default) or high:
+```markdown
+# hands-free security
+block-on: critical
+```
+
+### "The `/hands-free security` command shows 'No security scan data available'"
+
+No scan has run yet for this project. Either: (1) Run `/hands-free security --scan` to trigger a scan immediately, or (2) enable auto-commit (`/hands-free auto-commit on`) — a scan will run automatically before the next commit. If scanners are available but the scan is still empty after `--scan`, check that the `.claude/` directory is writable.
 
 ## HARD STOP — Always Pause
 
