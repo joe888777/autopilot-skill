@@ -2936,6 +2936,7 @@ Would PAUSE for:
   rm -rf *                            HARD STOP (crazy-workspace) / ask (full/partial/off)
   rm -rf .git                         HARD STOP (crazy-workspace) / ask (full/partial/off)
   Secrets in staged files             HARD STOP (all modes, universal)
+  Critical vulnerabilities (pre-commit scan)  HARD STOP (blocks auto-commit; configurable via CLAUDE.md `block-on:`)
   Paths escaping workspace            ask (full/partial/off) / HARD STOP (crazy-workspace)
 
 Learned preferences that would apply:
@@ -3100,14 +3101,15 @@ Hands-Free Session Log (full, learning: high)
   [writing-plans] subagent-driven (your preference)
   [review-checkpoint] writing-plans → executing-plans — user chose [C] Continue
   [executing-plans] batches 1-3 auto-continued
-  [auto-commit] feat: add validation to form (2 files)
+  [security] scan complete — grade A (0 critical, 0 high, 3 medium)
+  [auto-commit] feat: add validation to form (2 files) [security: A]
   [review-checkpoint] executing-plans → verification — skipped (review-checkpoints off)
   [verification] passed — proceeding to finishing-branch
   [review-checkpoint] verification → finishing-branch — HARD STOP (mandatory)
   [finishing-branch] PAUSED — git push → user approved
 ```
 
-Events logged: `[brainstorming]`, `[writing-plans]`, `[executing-plans]`, `[verification]`, `[finishing-branch]`, `[auto-commit]`, `[review-checkpoint]`, `[systematic-debugging]`, `[hard-stop]`, `[user-override]`.
+Events logged: `[brainstorming]`, `[writing-plans]`, `[executing-plans]`, `[verification]`, `[finishing-branch]`, `[auto-commit]`, `[review-checkpoint]`, `[systematic-debugging]`, `[hard-stop]`, `[user-override]`, `[security]`.
 
 **Log size:** For long sessions (ralph-loop with many iterations), the log may have hundreds of entries. When `/hands-free log` is called with > 50 events, show: the first 5 events (session start context), then `[... N events omitted ...]`, then the last 20 events (most recent). Include a total count: `(N total events this session)`. Pass `--full` to see the complete log.
 
@@ -4244,6 +4246,12 @@ Two tiers of hard stops:
 **Secrets in staged files** *(HARD STOP in ALL modes, no exceptions, including crazy-workspace)*
 - Any file matching the filename patterns in the Secrets Detection section
 - Any diff content matching the content signal patterns in the Secrets Detection section
+
+**Critical vulnerabilities found by security scanning** *(HARD STOP for auto-commit in ALL modes; configurable via CLAUDE.md `block-on:` key)*
+- When `cargo audit`, `bandit`, `npm audit`, or `pip-audit` reports a critical-severity finding, auto-commit is blocked in all modes until the user resolves or explicitly sets `block-on: none` in the project's `# hands-free security` CLAUDE.md section
+- Announcement: `[security] Auto-commit blocked — N critical vulnerabilities found`
+- High-severity findings warn but do not block by default; promote to blocking with `block-on: high`
+- Scanner not installed → skip gracefully (not a hard stop)
 
 **Crazy-workspace scope violations** *(HARD STOP in crazy-workspace only — these operations escape `./`)*
 - Any operation targeting paths outside `./`
