@@ -3,3 +3,5 @@
 *.swo
 # Personal preferences — not shared across users
 preferences.md
+# Security scan logs — generated automatically by hands-free pre-commit scanning
+.claude/security-scan.log

@@ -1340,6 +1340,71 @@ A shell command is **scoped to the current directory** if it contains no paths t
   - `crictl pull <image>` → ask (pulls from remote registry)
   - `podman machine init`, `podman machine start` → ask (creates or starts a VM — modifies system state)
   - `podman machine list` / `podman machine info` → auto-pass (read-only)
+- **PHP / Composer:**
+  - `composer install` → auto-pass (installs from `composer.lock`; writes to `vendor/` in cwd)
+  - `composer update` → auto-pass (updates `composer.lock` and installs; cwd-scoped)
+  - `composer require <package>` → auto-pass (adds dependency; cwd-scoped)
+  - `composer remove <package>` → auto-pass (removes dependency; cwd-scoped)
+  - `composer dump-autoload` → auto-pass (regenerates autoloader; cwd-scoped)
+  - `composer validate` → auto-pass (read-only: validates `composer.json` syntax)
+  - `composer outdated` → auto-pass (read-only: lists stale dependencies)
+  - `composer show` / `composer show <package>` → auto-pass (read-only package info)
+  - `composer check-platform-reqs` → auto-pass (read-only: checks PHP extension requirements)
+  - `composer audit` → auto-pass (read-only: checks for known security advisories)
+  - `composer run-script <script>` → classify by script name (safe: test/build/lint → auto-pass; deploy/publish → ask)
+  - `composer publish` → ask (publishes to Packagist — external registry)
+  - `php artisan migrate` → auto-pass (applies pending migrations to local DB)
+  - `php artisan migrate:rollback` → ask (reverts last migration batch — destructive)
+  - `php artisan make:controller/model/migration/seeder/factory/job` → auto-pass (cwd-scoped code generation)
+  - `php artisan tinker` → ask (interactive PHP REPL with full database access)
+  - `php artisan db:wipe` → ask (drops all tables — destructive)
+  - `php artisan config:cache` / `php artisan route:cache` / `php artisan view:cache` → auto-pass (cwd-scoped cache)
+  - `php artisan config:clear` / `php artisan route:clear` / `php artisan view:clear` → auto-pass (cwd-scoped)
+  - `php artisan test` / `./vendor/bin/phpunit` → auto-pass (cwd-scoped test runner)
+  - `php artisan queue:work` → auto-pass (starts local queue worker; localhost only)
+  - `./vendor/bin/phpstan analyse ./src` → auto-pass (cwd-scoped PHP static analysis)
+  - `./vendor/bin/psalm` → auto-pass (cwd-scoped PHP static analysis)
+  - `./vendor/bin/php-cs-fixer fix ./src` → auto-pass (cwd-scoped PHP formatter)
+  - `./vendor/bin/phpcs ./src` / `./vendor/bin/phpcbf ./src` → auto-pass (cwd-scoped PHP code style)
+- **OCaml / opam / Dune:**
+  - `opam install <package>` → ask (installs into opam switch — writes outside cwd)
+  - `opam install . --deps-only` → ask (installs project deps to opam switch — outside cwd)
+  - `opam update` → ask (updates opam package index — writes to `~/.opam/`)
+  - `opam list` / `opam show <package>` → auto-pass (read-only)
+  - `opam switch list` / `opam switch show` → auto-pass (read-only)
+  - `opam switch create <name> <compiler>` → ask (creates opam switch outside cwd)
+  - `dune build` → auto-pass (cwd-scoped Dune build)
+  - `dune test` / `dune runtest` → auto-pass (cwd-scoped Dune tests)
+  - `dune clean` → auto-pass (removes `_build/` in cwd)
+  - `dune exec <target>` → auto-pass (runs a local cwd binary)
+  - `dune fmt` → auto-pass (cwd-scoped OCaml formatter via ocamlformat)
+  - `ocamlfind list` → auto-pass (read-only: lists installed OCaml libraries)
+  - `ocamlopt ./src/main.ml -o ./build/main` → auto-pass (cwd-scoped native compilation)
+- **Crystal / Shards:**
+  - `shards install` → auto-pass (installs dependencies from `shard.lock` into `lib/`; cwd-scoped)
+  - `shards update` → auto-pass (updates `shard.lock`; cwd-scoped)
+  - `shards check` → auto-pass (read-only: verifies installed shards match lock file)
+  - `crystal build ./src/main.cr -o ./bin/app` → auto-pass (cwd-scoped Crystal compilation)
+  - `crystal spec` → auto-pass (cwd-scoped Crystal test runner)
+  - `crystal tool format ./src` → auto-pass (cwd-scoped Crystal formatter)
+  - `crystal tool hierarchy ./src/main.cr` → auto-pass (read-only type hierarchy)
+  - `crystal env` → auto-pass (read-only environment info)
+  - `crystal play` → ask (starts Crystal's interactive playground server)
+- **R (Statistical Computing):**
+  - `Rscript ./analysis.R` → auto-pass (runs a local R script; cwd-scoped)
+  - `R -e "rmarkdown::render('./report.Rmd')"` → auto-pass (renders R Markdown to cwd output)
+  - `R CMD check ./mypkg` → auto-pass (cwd-scoped package check)
+  - `R CMD build ./mypkg` → auto-pass (cwd-scoped package build)
+  - `R CMD INSTALL ./mypkg` → ask (installs R package to system R library — outside cwd)
+  - `Rscript -e "install.packages('dplyr')"` → ask (installs to system/user R library — outside cwd)
+  - `Rscript -e "renv::restore()"` → auto-pass (restores project deps from `renv.lock`; cwd-scoped)
+  - `Rscript -e "renv::install('dplyr')"` → auto-pass (installs into project renv library in cwd)
+  - `Rscript -e "renv::snapshot()"` → auto-pass (updates `renv.lock`; cwd-scoped)
+  - `Rscript -e "devtools::test()"` → auto-pass (cwd-scoped R package tests)
+  - `Rscript -e "lintr::lint_dir('./R')"` → auto-pass (cwd-scoped R linter)
+  - `Rscript -e "styler::style_dir('./R')"` → auto-pass (cwd-scoped R formatter)
+  - `Rscript -e "pkgdown::build_site()"` → auto-pass (generates docs in `docs/`; cwd-scoped)
+  - Note: `R` with no args → ask (interactive REPL requiring user input)
 - **openssl extended:**
   - `openssl s_client -connect example.com:443` → ask (connects to a remote TLS server — network egress)
   - `openssl verify ./cert.pem` → auto-pass (verifies a local certificate file, cwd-scoped)
@@ -2539,6 +2604,45 @@ Content signals in staged diffs (case-insensitive):
 
 Never override this check, even in crazy-workspace mode. Secrets detection is a hard stop in all modes.
 
+### Security Scanning
+
+Run security scanners before every auto-commit. Detection, execution, and outcome follow these rules.
+
+**Project type detection — check for the following indicators in the repo root:**
+
+| Indicator | Scanner to run |
+|---|---|
+| `Cargo.toml` present | `cargo audit` |
+| `*.py` files present anywhere in the repo | `bandit -r ./src` (fall back to `bandit -r .` if `./src` does not exist) |
+| `package.json` present | `npm audit` |
+| `requirements.txt` or `pyproject.toml` present | `pip-audit` |
+| Any source files present (any of the above matched) | `semgrep --config ./rules/` (local rules only; skip if `./rules/` directory does not exist; never pass `--config auto` or any remote config URL) |
+
+Multiple scanners may apply to the same repo (e.g., a Python + Rust mixed project). Run all that apply, in the order listed above.
+
+**Execution:**
+1. Run each applicable scanner as a non-blocking subprocess before staging files.
+2. Collect stdout + stderr from each scanner.
+3. Append a timestamped record for each scanner to `.claude/security-scan.log` (create the file and `.claude/` directory if they do not exist). Format per scanner run:
+   ```
+   [YYYY-MM-DD HH:MM:SS] [scanner-name] exit=N
+   <full stdout/stderr output>
+   ---
+   ```
+4. Ensure `.claude/security-scan.log` is listed in the repo's `.gitignore` on the first scan of a session (add the line if absent; do NOT commit the `.gitignore` change as a separate commit — include it with the next auto-commit that would have occurred anyway, or announce and skip if there is no pending auto-commit).
+
+**Severity handling:**
+
+| Severity level | Action |
+|---|---|
+| **Critical** | Block auto-commit; announce: `[security] Auto-commit blocked — N critical vulnerabilities found`. Do not stage or commit until the user resolves or explicitly overrides. |
+| **High** | Warn but do not block by default; announce: `[security] Warning — N high-severity findings. Review .claude/security-scan.log`. This behavior is configurable: add `Security scan: block on high` to the project's `# hands-free overrides` in CLAUDE.md to promote high findings to blocking. |
+| **Medium / Low / Info** | Log only; do not announce or block. |
+
+**Scanner not installed:** If a scanner binary is not found (command not found / exit code 127), skip it gracefully — log `[scanner-name] not installed — skipped` to `.claude/security-scan.log` and continue. Do NOT block the auto-commit solely because a scanner is missing.
+
+**Semgrep remote config prohibition:** Never invoke semgrep with `--config auto`, `--config p/...`, or any URL. Only `--config ./rules/` (local) is permitted. If `./rules/` is absent, skip semgrep entirely.
+
 ### Edge Cases
 
 | Situation | Behavior |
@@ -2560,6 +2664,8 @@ Never override this check, even in crazy-workspace mode. Secrets detection is a 
 | Post-commit hook fails | The commit **already succeeded** — post-commit failure is non-blocking; announce `[auto-commit] Committed but post-commit hook reported an error: [msg]` and continue |
 | GPG signing required but GPG not configured | Announce `[auto-commit] Skipping — GPG signing required but not configured. Set up GPG or disable signing: git config commit.gpgsign false`; do NOT bypass with `--no-gpg-sign` |
 | Working tree has unstaged submodule changes | Do not auto-commit submodule pointer changes unless the user explicitly staged them; announce `[auto-commit] Submodule changes detected but not staged — skipping submodule commit`
+| Security scan finds critical vulnerability | Block auto-commit; announce `[security] Auto-commit blocked — N critical vulnerabilities found`; pause for user to resolve before retrying |
+| Security scanner not installed | Skip that scanner gracefully; log `[scanner-name] not installed — skipped` to `.claude/security-scan.log`; do not block auto-commit |
 
 ### Session Log Entry
 
