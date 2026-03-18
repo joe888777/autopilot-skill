@@ -2600,7 +2600,7 @@ Content signals in staged diffs (case-insensitive):
 - **DATABASE_URL with embedded credentials:** `DATABASE_URL=postgresql://user:password@`, `DATABASE_URL=mysql://user:password@`, `DATABASE_URL=postgres://user:password@` — explicit environment variable assignment with credentials in the URI
 - **PEM blocks in any file extension:** `-----BEGIN` marker in any file (not just `.pem`) — private keys and certificates are often embedded in `.txt`, `.conf`, `.js`, `.ts`, `.env`, and other files
 - **Base64-encoded HTTP credentials:** `Authorization: Basic ` followed by a base64 string hardcoded in source — indicates embedded credentials rather than a runtime-injected value
-- **High-entropy strings:** Any quoted string literal longer than 20 characters with estimated Shannon entropy above 4.5 bits/char (characteristic of randomly generated tokens, keys, and passwords) — applies to assignment RHS values and string arguments, not natural-language prose
+- **High-entropy strings:** Strings that appear to be randomly generated tokens (alphanumeric + special chars, length >32, not a known placeholder pattern) — applies to assignment RHS values and string arguments, not natural-language prose
 
 **False positive reduction:** Do NOT fire on:
 - Lines prefixed with `#` (comments) — these are documentation
@@ -2610,7 +2610,7 @@ Content signals in staged diffs (case-insensitive):
 - `GITHUB_TOKEN`, `GITLAB_TOKEN`, `BITBUCKET_APP_PASSWORD` when used as bare variable names (no `=` or assigned a placeholder/env-ref value) — these are references, not leaks
 - `Authorization: Basic ` followed by a clearly placeholder base64 value such as `dXNlcjpwYXNz` (decodes to `user:pass`) or other well-known test strings
 - High-entropy false positives: minified JS/CSS bundles, lock files (`package-lock.json`, `Cargo.lock`, `yarn.lock`), binary blobs, and UUIDs (fixed 36-char format with hyphens) should NOT trigger entropy checks
-- `DATABASE_URL=` when the value is a placeholder template like `postgresql://user:password@localhost/db` or uses `${...}` substitution
+- `DATABASE_URL=` when the value is a placeholder template like `postgresql://user:password@localhost/db` or uses `${...}` substitution — however, if the password field contains a plausible real credential (not a known placeholder like `password`, `secret`, `changeme`, or `yourpassword`), still flag it even if the host is `localhost`
 
 Never override this check, even in crazy-workspace mode. Secrets detection is a hard stop in all modes.
 
@@ -2631,13 +2631,21 @@ Run security scanners before every auto-commit. Detection, execution, and outcom
 Multiple scanners may apply to the same repo (e.g., a Python + Rust mixed project). Run all that apply, in the order listed above.
 
 **Execution:**
-1. Run each applicable scanner as a non-blocking subprocess before staging files.
+1. Run each applicable scanner as a non-blocking subprocess before staging files. For bandit, use `bandit -r ./src` if `./src` exists, otherwise fall back to `bandit -r .` — the fallback is automatic; no user decision required.
 2. Collect stdout + stderr from each scanner.
 3. Append a timestamped record for each scanner to `.claude/security-scan.log` (create the file and `.claude/` directory if they do not exist). Format per scanner run:
    ```
    [YYYY-MM-DD HH:MM:SS] [scanner-name] exit=N
    <full stdout/stderr output>
    ---
+   ```
+   When a scanner is skipped (not installed or config missing), log a single line with no exit code or stdout/stderr fields:
+   ```
+   [YYYY-MM-DD HH:MM:SS] [scanner-name] skipped — not installed
+   ```
+   or
+   ```
+   [YYYY-MM-DD HH:MM:SS] [scanner-name] skipped — no rules directory
    ```
 4. Ensure `.claude/security-scan.log` is listed in the repo's `.gitignore` on the first scan of a session (add the line if absent; do NOT commit the `.gitignore` change as a separate commit — include it with the next auto-commit that would have occurred anyway, or announce and skip if there is no pending auto-commit).
 
@@ -2676,6 +2684,8 @@ Multiple scanners may apply to the same repo (e.g., a Python + Rust mixed projec
 | Working tree has unstaged submodule changes | Do not auto-commit submodule pointer changes unless the user explicitly staged them; announce `[auto-commit] Submodule changes detected but not staged — skipping submodule commit`
 | Security scan finds critical vulnerability | Block auto-commit; announce `[security] Auto-commit blocked — N critical vulnerabilities found`; pause for user to resolve before retrying |
 | Security scanner not installed | Skip that scanner gracefully; log `[scanner-name] not installed — skipped` to `.claude/security-scan.log`; do not block auto-commit |
+| Semgrep `./rules/` directory missing | Skip semgrep gracefully; log `[semgrep] no local rules directory — skipped` to `.claude/security-scan.log`; do not block auto-commit |
+| `.claude/` directory inaccessible (permissions) | Skip security scan entirely; log warning to stdout; auto-commit proceeds without scan |
 
 ### Session Log Entry
 
