@@ -2577,7 +2577,9 @@ Example sequence:
 - **Multi-session safety:** If two Claude Code sessions run simultaneously on the same repo, their auto-commits could interleave. Hands-free cannot detect concurrent sessions. If `git add` fails with a `index.lock` error, another session may be mid-commit — announce and pause; do NOT retry automatically (the other session must complete first)
 - If `git status` shows merge conflicts (both-modified files), skip auto-commit entirely and announce: `[auto-commit] Skipping — merge conflicts present. Resolve before committing.`
 
-**Secrets detection — run before every auto-commit (including crazy-workspace, no exceptions):**
+### Secrets Detection
+
+Run before every auto-commit (including crazy-workspace, no exceptions).
 
 Before staging any file, scan for secrets signals. If any match, abort and announce `Auto-commit blocked — possible secret detected in [filename]. Review and add to .gitignore before proceeding.`
 
