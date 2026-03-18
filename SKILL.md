@@ -3347,9 +3347,11 @@ Check for `.claude/.ralph-loop.local.md` at the start of each iteration. If pres
 
 **Announce iteration start.** At the beginning of each iteration, print a brief one-line status:
 ```
-[hands-free] Iteration 3/100 — prior work: 5 commits, tests: 8 passing / 2 failing
-[hands-free] Iteration 1/15 — no prior commits
+[hands-free] Iteration 3/100 — prior work: 5 commits, tests: 8 passing / 2 failing, security: A
+[hands-free] Iteration 1/15 — no prior commits, security: ?
 ```
+If `.claude/security-posture.json` is missing (no scan run yet), use `security: ?` in the iteration announcement.
+
 For time-based promises, include remaining time:
 ```
 [hands-free] Iteration 7 — time remaining until promise: ~2h 14m
@@ -3363,6 +3365,13 @@ For time-based promises, include remaining time:
 - If no build tool is detected or if checking would take too long → skip health check and route based on git state only
 - If build passes but tests fail → route to systematic-debugging
 - If build passes and tests pass → proceed with normal phase routing
+
+**Security scan health check.** After the build state health check, check for security vulnerabilities from the previous iteration:
+- Read `.claude/security-posture.json` (if it exists)
+- If the file is missing (no scan has been run yet) → skip gracefully; log a warning: `[hands-free] Security scan not yet run — skipping security health check`
+- If grade is **C, D, or F** → route to systematic-debugging with context: include the top vulnerabilities from `security-posture.json` so the debugging skill can address them
+- If grade is **A or B** → continue with normal phase routing (no rerouting needed)
+- If the scanner tool is not installed (e.g., `cargo audit`, `pip-audit`, `npm audit` missing) → skip gracefully with warning: `[hands-free] Security scanner not installed — skipping security health check`
 
 **Skip repeated brainstorming.** If the current iteration's task matches the previous iteration (same prompt), do NOT re-brainstorm from scratch. Instead:
 - Iteration 1: Full brainstorming → pick recommended → design → plan
@@ -3392,14 +3401,16 @@ Apply this decision table:
 
 If the state cannot be determined (ambiguous), default to resuming executing-plans from the last known batch and announce: `[hands-free] Iteration state ambiguous — resuming executing-plans from last batch.`
 
-**Iteration-aware auto-commits.** When auto-commit is on, tag commits with the iteration number:
+**Iteration-aware auto-commits.** When auto-commit is on, tag commits with the iteration number and append the security grade from `.claude/security-posture.json`:
 ```
-[ralph #3] feat: add input validation to user form
-[ralph #3] fix: handle edge case in date parser
-[ralph #4] test: add missing integration tests
+[ralph #3] feat: add input validation to user form [security: A]
+[ralph #3] fix: handle edge case in date parser [security: B]
+[ralph #4] test: add missing integration tests [security: A]
 ```
 
-Read the iteration count from `.claude/.ralph-loop.local.md` state file. If the iteration count cannot be determined (missing field, unreadable file), use `[ralph]` without a number: `[ralph] feat: add input validation`.
+Read the iteration count from `.claude/.ralph-loop.local.md` state file. If the iteration count cannot be determined (missing field, unreadable file), use `[ralph]` without a number: `[ralph] feat: add input validation [security: A]`.
+
+If `.claude/security-posture.json` is missing (no scan run yet), omit the security grade from commit messages entirely — do not append `[security: ?]`.
 
 ### Superpowers Skill Routing in Loop Mode
 
