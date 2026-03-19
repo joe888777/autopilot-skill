@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.40.0] — 2026-03-19
+
+### Added
+- `Loop backoff: on/off` CLAUDE.md directive: automatically increases the wait between iterations after consecutive failures
+- Backoff sequence: 0s → 30s → 60s → 120s → 240s → 300s (cap); doubles after each additional consecutive failure
+- Resets to 0s after any iteration where all tests pass — one passing iteration cancels all accumulated backoff
+- Effective wait = max(Loop cooldown value, current backoff value) when both directives are active
+- Announces wait before applying: `[hands-free] Backoff: waiting <X>s after <N> consecutive failures`
+- New row added to Available Persistent Settings table
+
 ## [2.39.0] — 2026-03-19
 
 ### Added

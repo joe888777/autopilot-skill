@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.39.0
+version: 2.40.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -4468,6 +4468,33 @@ The stats are output to the conversation and are not written to a file. Compatib
 
 **Default:** off — no session summary is output at loop end.
 
+### Loop Backoff
+
+When `Loop backoff: on` is set in CLAUDE.md, hands-free automatically increases the wait between iterations after consecutive failures, giving the system time to recover before retrying the same broken path.
+
+The backoff sequence (number of consecutive failures → wait before next iteration):
+
+| Consecutive failures | Backoff wait |
+|---|---|
+| 0 (pass) | 0s (no wait) |
+| 1 | 30s |
+| 2 | 60s |
+| 3 | 120s |
+| 4 | 240s |
+| 5+ | 300s (cap) |
+
+When backoff is applied, announce before waiting:
+```
+[hands-free] Backoff: waiting 30s after 1 consecutive failure
+[hands-free] Backoff: waiting 60s after 2 consecutive failures
+```
+
+**Reset condition:** Backoff resets to 0s after any iteration where all tests pass. A single passing iteration cancels all accumulated backoff, regardless of how many failures preceded it.
+
+**Interaction with `Loop cooldown`:** Both directives can be active simultaneously. The effective wait between iterations is `max(Loop cooldown value, current backoff value)`. For example, if `Loop cooldown: 45` and current backoff is 30s, the effective wait is 45s. If backoff grows to 60s, the effective wait becomes 60s.
+
+**Default:** off — no backoff is applied; iterations start immediately regardless of failure count.
+
 ### What Hands-Free Does NOT Do in Loop Mode
 
 - Does NOT auto-accept `git push` in `full`/`partial`/`off` modes — still a hard stop (crazy-workspace: auto within `./`)
@@ -4840,6 +4867,7 @@ Hands-free reads CLAUDE.md at the start of each session. Use a `# hands-free ove
 | `Loop cooldown: N` | `Loop cooldown: 30` | Enforces a minimum N-second pause between the end of one iteration and the start of the next; if the iteration took longer than N seconds, no artificial delay is added; cooldown does not apply after manual resume; absent by default |
 | `Loop iteration summary: on/off` | `Loop iteration summary: on` | When `on`, outputs a brief structured summary (status, commits, test results, warnings) at the end of each iteration to the conversation; distinct from `Loop notes: on` which writes to a file; default: `off` |
 | `Loop session stats: on/off` | `Loop session stats: on` | When `on`, outputs an aggregate session summary (total iterations, completed/skipped/failed counts, total commits, final test state, elapsed time) when the loop ends for any reason; compatible with `Loop iteration summary: on`; default: `off` |
+| `Loop backoff: on/off` | `Loop backoff: on` | When `on`, doubles the wait between iterations after each consecutive failure (0s → 30s → 60s → 120s → 240s → 300s cap); resets to 0s after any passing iteration; effective wait = max(Loop cooldown value, current backoff); default: `off` |
 
 ### Command-Level Overrides
 
