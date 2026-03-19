@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.9.0
+version: 2.10.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -30,6 +30,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 > | Check workspace health (git, build, tests, security) | `/hands-free health` |
 > | Print iteration checkpoint summary (read-only) | `/hands-free context` |
 > | Record current test results as regression baseline | `/hands-free test-baseline` |
+> | Generate PR title and body from checkpoint data | `/hands-free pr-description` |
 >
 > **Always blocked (all modes):** `curl|bash`, `source <(curl)`, language RCE (`python -c exec`, `node -e eval`, `deno run <url>`), `chmod 777`, secrets in commits, `rm -rf *`, `rm -rf .git`
 
@@ -62,6 +63,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 /hands-free health       # workspace health report (git state, build, tests, security posture)
 /hands-free context      # print iteration checkpoint summary (read-only)
 /hands-free test-baseline  # run tests now and record pass/fail counts as the regression baseline
+/hands-free pr-description  # generate PR title and body from checkpoint + git log
 ```
 
 **Mode persistence:** Hands-free mode is **session-scoped** — it resets at the start of each new conversation. For consistent defaults, add to the project's CLAUDE.md:
@@ -3095,6 +3097,60 @@ When invoked, run the project's test suite immediately and record the pass/fail 
 
 `/hands-free test-baseline` works in all modes (full, partial, off, crazy-workspace) and outside loop mode.
 
+## `/hands-free pr-description`
+
+When invoked, generate a PR title and body from checkpoint data and git log. Read-only — does not push, create a PR, or modify any state.
+
+**Steps:**
+
+1. Read `.claude/iteration-checkpoint.json` (fresh SHA required)
+2. Read `git log --oneline origin/main..HEAD` for commit history and count
+3. Read `.claude/security-posture.json` for grade (if present)
+4. Compose title and body using the same format as the finishing-branch auto-description
+5. Output the result as a code block
+
+**Output (checkpoint available):**
+```
+[pr-description] PR ready to create:
+
+Title: Add security remediation automation
+
+Body:
+---
+## Summary
+
+- US-001: Specify auto-fix behavior for medium/low vulnerabilities
+- US-002: Specify actionable fix commands for high/critical vulnerabilities
+- US-003: Add /hands-free security fix subcommand
+- US-004: Specify remediation history tracking
+- US-005: Bump version to 2.7.0
+
+## Test Results
+
+12 passed / 0 failed (2026-03-19T13:42:00Z)
+
+## Security Posture
+
+Grade: A — no vulnerabilities detected
+
+## Iteration Stats
+
+Completed in 4 iterations, 9 commits
+
+🤖 Generated by hands-free ralph-loop
+---
+To create: gh pr create --title "Add security remediation automation" --body "$(cat above)"
+```
+
+**If no new commits since origin/main:**
+```
+[pr-description] No new commits since origin/main — nothing to describe.
+```
+
+**If no checkpoint (or stale):** uses git log only; omits Test Results, Security Posture, and Iteration Stats sections.
+
+`/hands-free pr-description` works in all modes and outside loop mode.
+
 ## `/hands-free dry-run`
 
 When invoked, simulate what the current mode + learning settings would auto-accept **without actually enabling hands-free or changing any state**. Read-only — no side effects.
@@ -4156,6 +4212,58 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
 **`pending_stories` derivation:** Read the active plan file (PLAN.md or `.claude/plan.md`) and extract unchecked story items (`- [ ]` lines). If no plan file exists, use an empty array.
 
 **If no auto-commit occurred** (iteration produced no code changes): write the checkpoint anyway with `last_commit_sha` and `last_commit_message` from the most recent `git log` entry, and empty `completed_stories`.
+
+### PR Auto-Description
+
+When the `finishing-a-development-branch` phase starts in loop mode, hands-free auto-generates a PR title and body using checkpoint data. Output is announced as a fenced code block the user can copy directly into `gh pr create --title "..." --body "..."`.
+
+**Title derivation (in order):**
+1. Epic title from the beads tracker (if detectable)
+2. Last meaningful commit message — strip `[ralph #N]` prefix and conventional commit prefix (`feat:`, `fix:`, etc.)
+3. Fallback: `"Automated changes from ralph-loop (N iterations)"`
+
+**Body format:**
+
+```markdown
+## Summary
+
+- US-001: Add validation to user form
+- US-002: Add API endpoint
+- US-003: Update tests
+
+## Test Results
+
+24 passed / 0 failed (2026-03-19T14:00:00Z)
+
+## Security Posture
+
+Grade: A — no vulnerabilities detected
+
+## Iteration Stats
+
+Completed in 3 iterations, 7 commits
+
+🤖 Generated by hands-free ralph-loop
+```
+
+**Data sources:**
+- **Summary bullets**: `completed_stories` from checkpoint; if empty, use `git log --oneline origin/main..HEAD`
+- **Test Results**: `test_summary` from checkpoint; omit section if unavailable
+- **Security Posture**: `grade` from `.claude/security-posture.json`; omit section if file missing
+- **Iteration Stats**: `iteration` field from checkpoint; commit count from `git rev-list --count origin/main..HEAD`
+
+**If no checkpoint available:** emit minimal body using git log only:
+```markdown
+## Summary
+
+See commit history:
+- feat: add validation to user form
+- feat: add API endpoint
+
+🤖 Generated by hands-free ralph-loop
+```
+
+The PR description is output once, then the mandatory pre-push review checkpoint fires as usual. The user copies the description before approving the push.
 
 ## Crazy-Workspace Mode
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.10.0] — 2026-03-19
+
+### Added
+
+**PR Auto-Description**
+- `### PR Auto-Description`: when `finishing-a-development-branch` phase starts in loop mode, auto-generates a ready-to-paste PR title and body using checkpoint data (completed stories, test summary, security grade, iteration count)
+- Title derived from epic title, last meaningful commit message (stripped of `[ralph #N]` and conventional commit prefix), or fallback
+- Body includes: Summary (story list), Test Results, Security Posture, Iteration Stats, auto-generated footer
+- Falls back to git-log-only body when no checkpoint is available
+- `/hands-free pr-description`: on-demand PR description generator; same output as finishing-branch auto-description; outputs `gh pr create` command hint
+- `/hands-free pr-description` added to Commands block and Quick Reference table
+
 ## [2.9.0] — 2026-03-19
 
 ### Added
