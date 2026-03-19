@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.34.0] — 2026-03-19
+
+### Added
+- `Loop skip-if-unchanged: on/off` CLAUDE.md directive: skips an iteration when `git status --porcelain` reports a clean working tree
+- "Clean" defined: no modified, staged, or untracked files (`.gitignore`'d files are excluded from the check)
+- Skipped iterations are logged in the session log; combining with stall detection recommended for comprehensive coverage
+- New row added to Available Persistent Settings table
+
 ## [2.33.0] — 2026-03-19
 
 ### Added
