@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.49.0] — 2026-03-19
+
+### Added
+- `Loop branch guard: <branch>` CLAUDE.md directive: fires a HARD STOP at the start of each iteration if the current git branch does not match the specified branch
+- Branch detected via `git branch --show-current`; detached HEAD treated as `(detached HEAD)` for comparison
+- Check runs before any iteration work begins
+- New row added to Available Persistent Settings table
+
 ## [2.48.0] — 2026-03-19
 
 ### Added
