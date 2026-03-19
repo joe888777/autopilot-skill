@@ -2581,6 +2581,7 @@ Example sequence:
 - `git push` is still a **HARD STOP** — auto-commit is local only
 - **Multi-session safety:** If two Claude Code sessions run simultaneously on the same repo, their auto-commits could interleave. Hands-free cannot detect concurrent sessions. If `git add` fails with a `index.lock` error, another session may be mid-commit — announce and pause; do NOT retry automatically (the other session must complete first)
 - If `git status` shows merge conflicts (both-modified files), skip auto-commit entirely and announce: `[auto-commit] Skipping — merge conflicts present. Resolve before committing.`
+- **Security scan runs before every auto-commit** — see "## Security Scanning" for scanner details and blocking behavior
 
 ### Secrets Detection
 
@@ -2595,6 +2596,14 @@ Filename patterns to block:
 - `.npmrc` — often contains `//registry.npmjs.org/:_authToken=` publish tokens
 - `*.cer`, `*.der`, `*.crt` — certificate files that may include private key material
 - `.aws/credentials` — AWS credential file containing `aws_access_key_id` and `aws_secret_access_key`
+
+**Enhanced detection patterns (US-002):** In addition to filename patterns and basic content signals, hands-free also detects:
+- High-entropy strings (>4.5 bits/char, >20 chars) assigned to secrets-named variables
+- Base64-encoded credential values assigned to secrets-named variables
+- `GITHUB_TOKEN`, `GITLAB_TOKEN`, `BITBUCKET_APP_PASSWORD` with non-placeholder values
+- `DATABASE_URL` with embedded passwords on non-localhost hosts
+- PEM private key blocks in files of any extension
+- `.aws/credentials` files anywhere in the staged diff
 
 Content signals in staged diffs (case-insensitive):
 - **Generic token prefixes:** `sk-`, `ghp_`, `gho_`, `ghs_`, `ghr_` (GitHub tokens), `AKIA`/`AGPA`/`AROA`/`ASIA`/`AIPA`/`ANPA`/`ANVA`/`APKA` (AWS credential prefixes), `xoxb-`, `xoxp-`, `xoxe-` (Slack tokens)
@@ -2621,6 +2630,9 @@ Content signals in staged diffs (case-insensitive):
 - `Authorization: Basic ` followed by a clearly placeholder base64 value such as `dXNlcjpwYXNz` (decodes to `user:pass`) or other well-known test strings
 - High-entropy false positives: minified JS/CSS bundles, lock files (`package-lock.json`, `Cargo.lock`, `yarn.lock`), binary blobs, and UUIDs (fixed 36-char format with hyphens) should NOT trigger entropy checks
 - `DATABASE_URL=` when the value is a placeholder template like `postgresql://user:password@localhost/db` or uses `${...}` substitution — however, if the password field contains a plausible real credential (not a known placeholder like `password`, `secret`, `changeme`, or `yourpassword`), still flag it even if the host is `localhost`
+- Entropy-based detection exemptions: hex strings (matching `/^[0-9a-f]{40,}$/i` — SHA1/SHA256 hashes), UUIDs (matching standard UUID format), and bcrypt/argon2 hashes (starting with `$2b$`, `$argon2`)
+- High-entropy strings in minified/bundled files (`.min.js`, `bundle.js`, `dist/`) — these frequently contain legitimately random-looking strings
+- Base64 strings that are clearly encoded non-secret data (XML, HTML, or JSON when decoded — apply a quick decode check before flagging)
 
 Never override this check, even in crazy-workspace mode. Secrets detection is a hard stop in all modes.
 
@@ -2724,6 +2736,203 @@ The blocking threshold, disabled scanners, and false-positive whitelists are all
 [auto-commit] fix: handle null response in API client (1 file)
 ```
 
+## Security Scanning
+
+When auto-commit is active, hands-free runs security scans **before staging files**. Scans are project-type-aware — only applicable scanners run.
+
+### Scanner Selection (Project-Type Detection)
+
+| File Present | Scanner Invoked | Command |
+|---|---|---|
+| `Cargo.toml` | cargo-audit | `cargo audit` |
+| `*.py` files | bandit | `bandit -r ./src` (or nearest source dir) |
+| `package.json` | npm audit | `npm audit` |
+| `requirements.txt` or `pyproject.toml` | pip-audit | `pip-audit` |
+| Any source files | semgrep (local only) | `semgrep --config ./rules/ ./` (only if `./rules/` exists) |
+
+**Scanner availability:** Use `command -v <scanner>` to detect availability. Skip unavailable scanners gracefully with: `[security] <scanner> not installed — skipping`
+
+**Time budget:** All scanners together must complete within 30 seconds. If the budget is exceeded, stop remaining scanners and announce: `[security] Scan time budget exceeded — skipping remaining scanners`
+
+### Severity Thresholds and Blocking Behavior
+
+| Severity | Default Behavior | Configurable? |
+|---|---|---|
+| Critical | **BLOCK** auto-commit | Yes — `block-on: none` to warn only |
+| High | Warn, do not block | Yes — `block-on: high` to also block |
+| Medium | Log only | No |
+| Low | Log only | No |
+
+**Blocking announcement:**
+```
+[security] Auto-commit blocked — N critical vulnerabilities found
+  Scanner: <scanner-name>
+  Package: <package-name> (<CVE-ID if available>)
+  Fix: upgrade to <fixed-version>
+  Run /hands-free security for full report
+```
+
+**Warning announcement (high severity, non-blocking):**
+```
+[security] Warning: N high severity findings (not blocking — set block-on: high in CLAUDE.md to block)
+```
+
+### Scan Result Storage
+
+- **Log file:** `.claude/security-scan.log` — appended after each scan
+- **Report file:** `.claude/security-report.md` — overwritten with latest results
+- **`.gitignore` auto-update:** On first scan, hands-free automatically adds `.claude/security-scan.log` and `.claude/security-report.md` to the project's `.gitignore` (if not already present). If no `.gitignore` exists, it is created.
+- **Posture file:** `.claude/security-posture.json` — persists score between sessions
+
+Schema for `.claude/security-posture.json`:
+```json
+{
+  "grade": "A",
+  "lastScan": "2026-03-19T10:00:00Z",
+  "findings": [
+    {
+      "severity": "high",
+      "scanner": "npm-audit",
+      "package": "lodash",
+      "cve": "CVE-2021-23337",
+      "description": "Command injection vulnerability",
+      "fixedIn": "4.17.21"
+    }
+  ]
+}
+```
+
+### Normalized Severity Mapping
+
+Different scanners use different severity names. Normalize as follows:
+
+| Scanner | Scanner Severity | Normalized |
+|---|---|---|
+| cargo-audit | error | critical |
+| cargo-audit | warning | high |
+| bandit | HIGH | high |
+| bandit | MEDIUM | medium |
+| bandit | LOW | low |
+| npm audit | critical | critical |
+| npm audit | high | high |
+| npm audit | moderate | medium |
+| npm audit | low | low |
+| pip-audit | CRITICAL | critical |
+| pip-audit | HIGH | high |
+| pip-audit | MODERATE | medium |
+| pip-audit | LOW | low |
+| semgrep | ERROR | high |
+| semgrep | WARNING | medium |
+| semgrep | INFO | low |
+
+### `/hands-free security` Command
+
+When invoked, runs all applicable scanners and outputs a vulnerability summary:
+
+```
+Security Posture: A (last scan: 2026-03-19 10:00 UTC)
+
+Critical: 0
+High:     2
+  - lodash@4.17.20 (CVE-2021-23337) → fix: upgrade to 4.17.21 [npm-audit]
+  - requests@2.25.0 (CVE-2023-32681) → fix: upgrade to 2.31.0 [pip-audit]
+Medium:   3
+Low:      1
+
+Report written to .claude/security-report.md
+```
+
+If no scan has been run: `Security: unknown — run /hands-free security to scan`
+
+### Integration with `/hands-free status`
+
+The status output includes a Security line:
+
+```
+Hands-Free Status
+  Mode:                 full
+  ...
+  Security:             A (0 critical, 2 high) — last scan: 10 min ago
+```
+
+Grade scale:
+- **A:** 0 critical, < 5 high
+- **B:** 0 critical, 5–15 high
+- **C:** 1–2 critical
+- **D:** 3+ critical
+- **F:** scan failed or blocked
+
+If unknown: `Security: unknown (run /hands-free security)`
+
+### Auto-Commit Integration Flow
+
+```
+1. Task complete → about to auto-commit
+2. Run security scanners (project-type detection)
+3. If critical findings → BLOCK, announce, do NOT stage or commit
+4. If high findings → warn, continue to commit
+5. Stage specific files (git add <files>)
+6. Secrets detection scan (existing behavior)
+7. If secrets found → BLOCK
+8. git commit with message
+9. Append security grade to commit message in loop mode: [ralph #3] feat: add validation [security: A]
+```
+
+### CLAUDE.md Security Overrides
+
+Add a `# hands-free security` section to the project's CLAUDE.md to configure security scanning behavior:
+
+```markdown
+# hands-free security
+- block-on: critical        ← (default) only block auto-commit on critical findings
+- block-on: high            ← block on high AND critical findings
+- block-on: none            ← warn only, never block auto-commit
+- skip-scanners: cargo-audit, bandit   ← comma-separated list of scanners to skip
+- allow-patterns: "test_token", "example_key"   ← whitelist specific false positive patterns
+- disable-security: true    ← disable all security scanning (not recommended)
+```
+
+**`block-on` values:**
+- `critical` (default) — only findings normalized to "critical" severity block auto-commit
+- `high` — findings normalized to "high" or "critical" block auto-commit
+- `none` — all findings are warnings only; auto-commit never blocked by security
+
+**`skip-scanners`** accepts a comma-separated list of scanner names: `cargo-audit`, `bandit`, `npm-audit`, `pip-audit`, `semgrep`
+
+**`allow-patterns`** accepts a comma-separated list of quoted strings. Any secrets detection content signal that matches one of these strings (substring match, case-insensitive) is suppressed and not flagged.
+
+**`disable-security: true`** — completely disables the security scanning step. Use only in repos where scanning is handled externally (e.g., CI pipeline with tighter controls). This setting does NOT disable the existing secrets detection hard stop — that runs regardless.
+
+**Interaction with other settings:**
+- Security settings are independent of hands-free mode (full/partial/off/crazy-workspace)
+- Security overrides apply whenever auto-commit is active
+- `disable-security: true` does not disable the universal secrets detection in staged files
+- CLAUDE.md security settings take precedence over any learned preferences
+
+### Graceful Degradation
+
+- **Scanner not installed:** Skip with `[security] cargo-audit not installed — skipping. Install with: cargo install cargo-audit`
+- **Scan times out (30s budget):** Stop and warn: `[security] Scan budget exceeded — partial results only`
+- **Scanner output unparseable:** Log raw output to `.claude/security-scan.log`, treat as warning (non-blocking)
+- **`.claude/` directory doesn't exist:** Create it silently on first scan
+
+### Troubleshooting
+
+**"Security scan is blocking auto-commit unexpectedly"**
+Check: What scanner flagged a critical? Run `/hands-free security` for the full report. To temporarily bypass: add `block-on: none` to `# hands-free security` in CLAUDE.md, fix the vulnerability, then remove the override.
+
+**"Scanner is running but I didn't install it"**
+The scanner was already on your PATH (installed globally). To skip it for this project: `skip-scanners: <scanner-name>` in `# hands-free security` CLAUDE.md section.
+
+**"semgrep is not running even though I have rules"**
+Semgrep only runs when `./rules/` directory exists in the project root. Check: `ls ./rules/`. Only local rules run (`--config ./rules/`) — remote configs (`--config auto`) are not auto-invoked (see Shell Command Auto-Pass Rules).
+
+**"Security scan is slow"**
+The 30-second time budget applies across all scanners. To speed up: `skip-scanners: bandit` (Python AST scan is often the slowest). cargo-audit and npm-audit are typically fast.
+
+**"False positive blocking my commit"**
+Add the pattern to the whitelist: `allow-patterns: "your-pattern"` in `# hands-free security` CLAUDE.md. Then run `/hands-free security` to confirm the finding is suppressed, then retry auto-commit.
+
 ## Learning
 
 Preferences stored in `~/.claude/skills/hands-free/preferences.md`. Records choices whether hands-free is on or off.
@@ -2766,6 +2975,9 @@ If no CLAUDE.md directive exists (or the section is absent), start silently in `
     Auto-commit: on (applied at session start)
     psql postgresql://prod → always ask (security rule, cannot override)
     [security] block-on: high; skip-scanners: cargo-audit
+  Security overrides (2 active):
+    block-on: high (blocks high+critical)
+    skip-scanners: bandit (Python AST scan disabled)
 ```
 If no `# hands-free security` section is configured (or all keys are at their default values), no `[security]` line appears.
 
@@ -2861,7 +3073,7 @@ The user later asks `/hands-free explain` → shows that preference overrode rec
 
 ## `/hands-free status`
 
-When invoked, print a concise state summary:
+When invoked, print a concise state summary. The Security line shows the current posture grade (A–F), finding counts, and time since last scan. Grade is computed from `.claude/security-posture.json`. If no scan has run, shows "unknown".
 
 ```
 Hands-Free Status
@@ -2871,7 +3083,7 @@ Hands-Free Status
   Review checkpoints:   off
   Paused:               no
   Loop-aware:           yes (iteration 3/15)
-  Security:             A (0 critical, 2 high, 5 medium)
+  Security:             A (0 critical, 2 high) — last scan: 8 min ago
 
   Session decisions:    14 auto-accepted, 1 paused
   Preferences loaded:   3 rules (2 high, 1 medium)
@@ -2902,7 +3114,7 @@ If hands-free is off:
 Hands-Free Status
   Mode:       off (inactive)
   Learning:   high (still tracking choices — use /hands-free full to apply them)
-  Security:   A (0 critical, 2 high, 5 medium)
+  Security:   unknown (run /hands-free security)
   Preferences loaded: 2 rules (1 high, 1 medium)
 
   To activate: /hands-free full
@@ -3313,6 +3525,8 @@ When invoked, display the current vulnerability summary from the last security s
 
 Data source: `.claude/security-scan.log` — this file is populated automatically by the auto-commit security scanning hook (runs before each auto-commit). It is also populated on demand by `/hands-free security --scan`.
 
+The command auto-detects which scanners are available using `command -v <scanner>`. If a scanner is not installed, it is silently skipped — no error is shown.
+
 **Output format:**
 
 ```
@@ -3496,9 +3710,9 @@ Check for `.claude/.ralph-loop.local.md` at the start of each iteration. If pres
 **Announce iteration start.** At the beginning of each iteration, print a brief one-line status:
 ```
 [hands-free] Iteration 3/100 — prior work: 5 commits, tests: 8 passing / 2 failing, security: A
-[hands-free] Iteration 1/15 — no prior commits, security: ?
+[hands-free] Iteration 1/15 — no prior commits
 ```
-If `.claude/security-posture.json` is missing (no scan run yet), use `security: ?` in the iteration announcement.
+Security grade is included in the iteration announcement if `.claude/security-posture.json` exists. If no scan has run yet, the security field is omitted from the announcement.
 
 For time-based promises, include remaining time:
 ```
@@ -3644,6 +3858,7 @@ The completion promise is checked at the **start of each iteration**, before any
 - Does NOT re-brainstorm if a design already exists from a prior iteration
 - Does NOT skip mandatory review checkpoints (before execution starts, before push/merge) — these fire even in loop mode
 - Does NOT output the completion promise unless the condition is genuinely true — loop integrity depends on honest promise evaluation
+- Does NOT skip security scans in loop mode — scans run before every auto-commit regardless of iteration count
 
 ### Detecting Repeated Context (Loop Stall Prevention)
 
@@ -3738,6 +3953,7 @@ Hands-free reads CLAUDE.md at the start of each session. Use a `# hands-free ove
 | `Learning: h/m/l` | `Learning: high` | Sets learning sensitivity at session start |
 | `Review checkpoints: on/off` | `Review checkpoints: on` | Enables review checkpoints at session start |
 | `Default loop-aware: on` | `Default loop-aware: on` | Always enter loop-aware mode even without ralph-loop |
+| `Security block-on: <level>` | `block-on: high` | Sets when security findings block auto-commit (critical/high/none) |
 
 ### Command-Level Overrides
 
@@ -3750,6 +3966,14 @@ Override the default classification for specific commands or tools:
 - npm run deploy:staging → auto-pass (known-safe staging script)
 - notion-move-pages is safe to auto-approve in full mode
 - $BUILD_DIR is always ./build → auto-pass cleanup commands using it
+```
+
+```markdown
+# hands-free security
+# Skip security scanning for this legacy project (security handled in CI)
+- disable-security: true
+# This project generates high-entropy API keys in tests — whitelist the pattern
+- allow-patterns: "test_api_key_", "mock_token_"
 ```
 
 ### Tool-Level Overrides
@@ -3805,6 +4029,14 @@ Add a comment explaining why an override exists — future-you will thank presen
 - fly proxy → auto-pass
 # (staging DB is a local Docker container, not a real remote)
 - psql -h localhost:5433 → auto-pass
+```
+
+```markdown
+# hands-free security
+# (staging environment — relax blocking to warn-only; prod CI enforces strict checks)
+- block-on: none
+# (cargo-audit is broken on this version of rustc — skip until rustc updated)
+- skip-scanners: cargo-audit
 ```
 
 ### Security Overrides

@@ -272,6 +272,20 @@ Hands-free enforces **universal hard stops** in ALL modes, including `crazy-work
 
 All other hard stops (git push, merge, destructive ops) apply in `full`/`partial`/`off` modes but are auto-approved in `crazy-workspace` within `./`.
 
+## Security Automation
+
+Hands-free automatically runs security scanners before each auto-commit:
+
+- **cargo-audit** — Rust projects (`Cargo.toml` detected)
+- **bandit** — Python source files (`*.py` detected)
+- **npm audit** — Node.js projects (`package.json` detected)
+- **pip-audit** — Python dependencies (`requirements.txt` / `pyproject.toml` detected)
+- **semgrep** — any project with a local `./rules/` directory (local rules only; never downloads remote configs)
+
+Critical vulnerabilities block auto-commit and display `[security] Auto-commit blocked — N critical vulnerabilities found`. High-severity findings warn without blocking by default. All results are logged to `.claude/security-scan.log`.
+
+Run `/hands-free security` for an on-demand vulnerability summary. Add `--scan` to force a fresh scan. Configure per-project thresholds, disabled scanners, and false-positive allowlists via a `# hands-free security` section in the project's CLAUDE.md.
+
 ## Per-project overrides (CLAUDE.md)
 
 Global preferences apply across all projects. For repo-specific rules, add a `hands-free overrides` section to the project's CLAUDE.md:
