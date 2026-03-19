@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.20.0] — 2026-03-19
+
+### Added
+
+**Consecutive Failure Guard (Loop Auto-Stop)**
+- Third auto-stop condition added to `### Loop Auto-Stop Conditions`: fires when the same failure identifier (first failing test name or build error first line) recurs unchanged for 3 consecutive iterations
+- Announcement: `[hands-free] LOOP AUTO-STOP: Same failure repeated 3 iterations (<identifier>). Pausing for user review.`
+- Session-memory tracking: counter resets when the failure changes or disappears
+- Log format: `[auto-stop] consecutive-failure: <identifier> — iteration N halted`
+- Two new CLAUDE.md overrides: `Loop failure guard: off` to disable the guard, `Loop failure repeat: N` to set a custom consecutive count (default: 3)
+
+---
+
 ## [2.19.0] — 2026-03-19
 
 ### Added
