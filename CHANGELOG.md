@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.13.0] — 2026-03-19
+
+### Added
+
+**Loop Health Score**
+- Composite 0-100 health score computed each iteration from four pillars: Test Health (T), Security Health (S), Velocity Health (V), Commit Health (C)
+- Pillar formulas: T = proportional test pass rate (0 failures=100, no data=50); S = A→100, B→80, C→60, D→40, F→0, null=50; V = zero-count in last 3 velocity_trend entries (0→100, 1→60, 2→30, stall→0, insufficient→100); C = commits>0→100, else 50
+- Overall score = integer average of four pillars (round half-up), stored as `health_score` (int 0-100) in `.claude/iteration-checkpoint.json`
+- `### Loop Health Score` sub-section under `## Ralph Loop Integration` with pillar table and null-handling rules
+- `health_score` field added to checkpoint JSON schema and field definitions table
+- Iteration start announcement now shows `health: N/100 (T:X S:X V:X C:X)` line when checkpoint has a health score
+- `/hands-free status` shows `Loop health: N/100 (T:X S:X V:X C:X)` in loop-aware mode; `Loop health: N/A` otherwise
+- DEGRADED pre-flight announcements append `[Health: N/100]` when a prior health score is available
+
+---
+
 ## [2.12.0] — 2026-03-19
 
 ### Added

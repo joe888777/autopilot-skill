@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.12.0
+version: 2.13.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -2934,6 +2934,7 @@ Hands-Free Status
   Review checkpoints:   off
   Paused:               no
   Loop-aware:           yes (iteration 3/15)
+  Loop health:          87/100 (T:100 S:80 V:100 C:80)
   Security:             A (0 critical, 2 high) — last scan: 8 min ago
 
   Session decisions:    14 auto-accepted, 1 paused
@@ -2972,6 +2973,8 @@ Hands-Free Status
 ```
 
 The `Security:` line is shown in all modes (including off) when `.claude/security-posture.json` exists — the grade is stored on disk independently of hands-free mode. If no scan has run, `Security: unknown (run /hands-free security)`.
+
+The `Loop health:` line is shown only in loop-aware mode. Shows `Loop health: N/A` when not in a loop or when no prior checkpoint `health_score` is available.
 
 In `off` mode, learning continues tracking choices but no auto-accept or auto-commit happens. Preferences accumulate for when the mode is re-enabled.
 
@@ -3966,9 +3969,10 @@ Check for `.claude/.ralph-loop.local.md` at the start of each iteration. If pres
   pending     : (none)
   tests       : 12 passed / 0 failed (2026-03-19T13:42:00Z)
   security    : A
+  health      : 87/100 (T:100 S:100 V:100 C:100)
 ```
 
-Security grade is included only if `.claude/security-posture.json` exists; omit if no scan has run. The `pending` line lists incomplete stories from `active_plan_file`; show `(none)` when all are done or no plan exists. The `branch` line is included if the checkpoint has a `branch` field; if the current branch differs from the checkpoint branch, add `⚠ branch changed` annotation: `branch: ralph/loop-20260319-1 → main ⚠ branch changed`.
+Security grade is included only if `.claude/security-posture.json` exists; omit if no scan has run. Health score is included if `health_score` is present in the checkpoint; omit if null or missing. The `pending` line lists incomplete stories from `active_plan_file`; show `(none)` when all are done or no plan exists. The `branch` line is included if the checkpoint has a `branch` field; if the current branch differs from the checkpoint branch, add `⚠ branch changed` annotation: `branch: ralph/loop-20260319-1 → main ⚠ branch changed`.
 
 **No re-brainstorming with a fresh checkpoint.** When a valid checkpoint is loaded and `pending_stories` is non-empty, skip brainstorming and writing-plans phases — the design is already decided. Route directly to executing-plans for the next pending story. When `pending_stories` is empty and all verification passes, route to finishing-a-development-branch.
 
@@ -3991,7 +3995,7 @@ For time-based promises, append remaining time after the context block:
 
 **BLOCKED** means the iteration cannot safely continue. Hands-free announces the block and stops work for this iteration. Ralph-loop moves to the next iteration (ralph-loop controls termination — do not output the completion promise as a result of a block).
 
-**DEGRADED** means an issue was detected and auto-healed. Hands-free announces what was fixed, then continues to the build state health check.
+**DEGRADED** means an issue was detected and auto-healed. Hands-free announces what was fixed, then continues to the build state health check. If a prior `health_score` is available from the checkpoint, append it to the DEGRADED announcement: `[hands-free] Pre-flight DEGRADED — [reason] [Health: 72/100]`.
 
 If the working tree is already clean (no staged changes, no unstaged modifications, no conflicts, HEAD attached) — pre-flight passes silently with no announcement.
 
@@ -4237,6 +4241,7 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
     "total_stories_completed": 12,
     "total_commits": 9
   },
+  "health_score": 87,
   "written_at": "2026-03-19T13:44:00Z"
 }
 ```
@@ -4260,6 +4265,7 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
 | `metrics.velocity_trend` | int[] | FIFO array of last 5 `stories_completed_this_iteration` values (oldest first); pruned to 5 on each write |
 | `metrics.total_stories_completed` | int | Running total of stories completed across all iterations; additive, never reset |
 | `metrics.total_commits` | int | Running total of `[ralph #N]` commits across all iterations; additive, never reset |
+| `health_score` | int \| null | Composite 0-100 health score computed from four pillars; null if no prior iteration data available |
 | `written_at` | string | ISO 8601 timestamp when checkpoint was written |
 
 **`pending_stories` derivation:** Read the active plan file (PLAN.md or `.claude/plan.md`) and extract unchecked story items (`- [ ]` lines). If no plan file exists, use an empty array.
@@ -4284,6 +4290,23 @@ The `metrics` object inside the checkpoint is updated on every checkpoint write.
   Consider narrowing scope, switching to a different failing test, or reviewing the plan.
 Pausing — type 'continue' to proceed anyway or describe a new approach.
 ```
+
+### Loop Health Score
+
+Each iteration, hands-free computes a **composite 0-100 health score** from four pillars and stores it as `health_score` in the checkpoint. The score provides a single signal for loop quality at a glance.
+
+**Pillar formulas:**
+
+| Pillar | Abbreviation | Score formula |
+|---|---|---|
+| Test Health | T | `test_summary.failed == 0` → 100; `failed > 0` → `max(0, round(100 − (failed / (passed + failed)) × 100))`; no test data → 50 |
+| Security Health | S | Grade A → 100; B → 80; C → 60; D → 40; F → 0; null → 50 |
+| Velocity Health | V | Count zeros in last 3 of `velocity_trend`: 0 zeros → 100; 1 zero → 60; 2 zeros → 30; all 3 zeros or velocity stall → 0; `len(velocity_trend) < 3` → 100 |
+| Commit Health | C | `commits_this_iteration > 0` → 100; `== 0` → 50; `metrics` missing → 50 |
+
+**Overall score:** Integer average of T + S + V + C, rounded to nearest int (round half-up). Stored as `health_score` in the checkpoint.
+
+**Null handling:** If the checkpoint has no `metrics` (first iteration) or no `test_summary`, substitute 50 for any pillar that lacks the data it needs.
 
 ### PR Auto-Description
 
