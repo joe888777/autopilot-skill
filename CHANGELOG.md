@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.38.0] — 2026-03-19
+
+### Added
+- `Loop iteration summary: on/off` CLAUDE.md directive: outputs a brief structured summary (status, commits, tests, warnings) at the end of each iteration to the conversation
+- Summary fires for all iteration outcomes: completed, skipped, paused, hard-stop
+- Distinct from `Loop notes: on` which writes to `.claude/loop-notes.md`; both can be used together
+- New row added to Available Persistent Settings table
+
 ## [2.37.0] — 2026-03-19
 
 ### Added
