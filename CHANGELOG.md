@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.36.0] — 2026-03-19
+
+### Added
+- `Loop pre-iteration: <command>` CLAUDE.md directive: runs a setup command at the start of each iteration before any work begins
+- Hook failure (non-zero exit) fires a HARD STOP — the iteration does not proceed until the user resolves the issue and runs `/hands-free resume`
+- Contrast with on-failure (advisory) and on-complete (one-shot): pre-iteration is mandatory and blocking
+- Same cwd-scope and HARD STOP rules apply as all other shell commands
+- New row added to Available Persistent Settings table
+
 ## [2.35.0] — 2026-03-19
 
 ### Added

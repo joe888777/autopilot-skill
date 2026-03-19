@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.35.0
+version: 2.36.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -4411,6 +4411,20 @@ The same cwd-scope auto-pass rules and HARD STOP rules that apply to all shell c
 
 **Default:** absent — no on-failure hook.
 
+### Loop Pre-Iteration Hook
+
+When `Loop pre-iteration: <command>` is set in CLAUDE.md, hands-free runs the specified shell command at the **start of each iteration**, before any brainstorming, planning, or execution begins. This is useful for pulling fresh data, checking external dependencies, or resetting environment state.
+
+Announce before running: `[hands-free] Pre-iteration hook: running '<command>'`
+
+The same cwd-scope auto-pass rules and HARD STOP rules that apply to all shell commands apply here. If the command fails (non-zero exit code), hands-free fires a HARD STOP and does not proceed with the iteration:
+
+`[hands-free] HARD STOP — pre-iteration hook failed: <error>. Fix the hook and run /hands-free resume to continue.`
+
+After `/hands-free resume`, the hook runs again at the start of the next iteration.
+
+**Default:** absent — no pre-iteration hook.
+
 ### What Hands-Free Does NOT Do in Loop Mode
 
 - Does NOT auto-accept `git push` in `full`/`partial`/`off` modes — still a hard stop (crazy-workspace: auto within `./`)
@@ -4779,6 +4793,7 @@ Hands-free reads CLAUDE.md at the start of each session. Use a `# hands-free ove
 | `Loop on-complete: <command>` | `Loop on-complete: ./notify.sh` | Runs the specified shell command once before outputting the completion promise; failure is announced but does not suppress the promise; same shell rules apply; absent by default |
 | `Loop skip-if-unchanged: on/off` | `Loop skip-if-unchanged: on` | When `on`, checks `git status --porcelain` at the start of each iteration; if the working tree is clean (no modified, staged, or untracked files), skips the iteration and advances; default: `off` |
 | `Loop on-failure: <command>` | `Loop on-failure: ./notify-fail.sh` | Runs the specified shell command after each iteration that ends with test failures; fires once per failed iteration (not one-shot); failure is announced but does not halt the loop; same shell rules apply; absent by default |
+| `Loop pre-iteration: <command>` | `Loop pre-iteration: git pull --ff-only` | Runs the specified shell command at the start of each iteration before any work begins; if the command fails (non-zero exit), fires a HARD STOP before the iteration proceeds; same shell rules apply; absent by default |
 
 ### Command-Level Overrides
 
