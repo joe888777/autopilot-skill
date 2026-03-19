@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.41.0
+version: 2.42.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -4497,6 +4497,32 @@ When backoff is applied, announce before waiting:
 
 **Default:** off — no backoff is applied; iterations start immediately regardless of failure count.
 
+### Loop Quiet Mode
+
+When `Loop quiet mode: on` is set in CLAUDE.md, hands-free suppresses routine per-iteration announcements to reduce conversation noise during long-running loops.
+
+**Suppressed in quiet mode:**
+- `[hands-free] Iteration N/M — ...` iteration-start status line
+- `[hands-free] Cooldown: waiting Xs before next iteration`
+- `[hands-free] Backoff: waiting Xs after N consecutive failures`
+- `[auto-commit] ...` per-iteration commit messages
+- `[hands-free] Auto-push: pushed successfully` push success confirmations
+
+**Always printed regardless of quiet mode:**
+- `[hands-free] Warning: ...` lines (stall detection, max-failures, final-3-iterations)
+- HARD STOP announcements (including auto-push failure)
+- Mandatory review checkpoint blocks
+- `[hands-free] LOOP AUTO-STOP: ...` auto-stop condition messages
+- Completion promise output (when the loop terminates)
+- Pre-push announcements (`[hands-free] Auto-push: pushing N commit(s) to origin/<branch>`) — preserved so push failures always have context
+- Iteration-count warnings (final 3 remaining, final 2, final 1 pause)
+
+**Session log:** All events are still captured in `/hands-free log` regardless of quiet mode — quiet mode only affects what is printed to the conversation.
+
+**`/hands-free status`** shows `Loop quiet mode: on` when the directive is active.
+
+**Default:** off — all routine per-iteration announcements are printed normally.
+
 ### What Hands-Free Does NOT Do in Loop Mode
 
 - Does NOT auto-accept `git push` in `full`/`partial`/`off` modes — still a hard stop (crazy-workspace: auto within `./`)
@@ -4870,6 +4896,7 @@ Hands-free reads CLAUDE.md at the start of each session. Use a `# hands-free ove
 | `Loop iteration summary: on/off` | `Loop iteration summary: on` | When `on`, outputs a brief structured summary (status, commits, test results, warnings) at the end of each iteration to the conversation; distinct from `Loop notes: on` which writes to a file; default: `off` |
 | `Loop session stats: on/off` | `Loop session stats: on` | When `on`, outputs an aggregate session summary (total iterations, completed/skipped/failed counts, total commits, final test state, elapsed time) when the loop ends for any reason; compatible with `Loop iteration summary: on`; default: `off` |
 | `Loop backoff: on/off` | `Loop backoff: on` | When `on`, doubles the wait between iterations after each consecutive failure (0s → 30s → 60s → 120s → 240s → 300s cap); resets to 0s after any passing iteration; effective wait = max(Loop cooldown value, current backoff); default: `off` |
+| `Loop quiet mode: on/off` | `Loop quiet mode: on` | When `on`, suppresses routine per-iteration announcements (iteration-start status, cooldown/backoff waits, auto-commit messages, auto-push success); warnings, HARD STOPs, mandatory checkpoints, and final-iteration notices are always printed; session log still captures all events; default: `off` |
 
 ### Command-Level Overrides
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.42.0] — 2026-03-19
+
+### Added
+- `Loop quiet mode: on/off` CLAUDE.md directive: suppresses routine per-iteration announcements for cleaner long-loop output
+- Suppressed in quiet mode: iteration-start status lines, cooldown/backoff wait notices, auto-commit messages, auto-push success confirmations
+- Always printed regardless of quiet mode: warnings, HARD STOPs, mandatory review checkpoints, auto-stop notices, completion promise, final-iteration warnings
+- Session log still captures all events; quiet mode only affects conversation output
+- New row added to Available Persistent Settings table
+
 ## [2.41.0] — 2026-03-19
 
 ### Changed
