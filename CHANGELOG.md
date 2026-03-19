@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.24.0] — 2026-03-19
+
+### Added
+
+**Loop Branch Guard**
+- In loop-aware mode, checks the current git branch at the start of the first iteration
+- If the active branch matches any branch in the protected list, announces an advisory warning: `[hands-free] Warning: loop is running on protected branch '<branch>' — consider switching to a feature branch`
+- Warning is advisory only — the iteration proceeds normally; fires once per session to avoid noise
+- Default protected branches: `main`, `master`
+- New `### Loop Branch Guard` sub-section in `## Ralph Loop Integration` explains the rationale and behavior
+- `Loop protected branches: <list>` CLAUDE.md directive — comma-separated list of protected branch names (default: `main,master`)
+- `Loop branch guard: off` CLAUDE.md directive — disables the guard entirely for the project
+- Both directives added to the Available Persistent Settings table
+
 ## [2.23.0] — 2026-03-19
 
 ### Added
