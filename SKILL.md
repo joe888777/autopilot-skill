@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.10.0
+version: 2.11.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -3926,13 +3926,14 @@ Check for `.claude/.ralph-loop.local.md` at the start of each iteration. If pres
 ```
 [hands-free] Iteration 4/100 — context from checkpoint
   last commit : c3f35a4 — feat: add security remediation automation (v2.7.0)
+  branch      : ralph/loop-20260319-1
   stories done: US-001, US-002, US-003, US-004, US-005
   pending     : (none)
   tests       : 12 passed / 0 failed (2026-03-19T13:42:00Z)
   security    : A
 ```
 
-Security grade is included only if `.claude/security-posture.json` exists; omit if no scan has run. The `pending` line lists incomplete stories from `active_plan_file`; show `(none)` when all are done or no plan exists.
+Security grade is included only if `.claude/security-posture.json` exists; omit if no scan has run. The `pending` line lists incomplete stories from `active_plan_file`; show `(none)` when all are done or no plan exists. The `branch` line is included if the checkpoint has a `branch` field; if the current branch differs from the checkpoint branch, add `⚠ branch changed` annotation: `branch: ralph/loop-20260319-1 → main ⚠ branch changed`.
 
 **No re-brainstorming with a fresh checkpoint.** When a valid checkpoint is loaded and `pending_stories` is non-empty, skip brainstorming and writing-plans phases — the design is already decided. Route directly to executing-plans for the next pending story. When `pending_stories` is empty and all verification passes, route to finishing-a-development-branch.
 
@@ -3949,8 +3950,9 @@ For time-based promises, append remaining time after the context block:
 |---|---|---|---|---|
 | 1 | `git status` shows both-modified (merge conflict markers) | BLOCKED | Halt iteration | `[hands-free] Pre-flight BLOCKED — merge conflicts present. Resolve manually before continuing.` |
 | 2 | HEAD is detached (`git symbolic-ref HEAD` fails) | BLOCKED | Halt iteration | `[hands-free] Pre-flight BLOCKED — detached HEAD. Run git checkout <branch> before continuing.` |
-| 3 | Staged but uncommitted changes exist | DEGRADED | Auto-commit staged files with message `chore: pre-flight auto-commit [ralph #N]` (or warn if secrets detected) | `[hands-free] Pre-flight: auto-committed N staged file(s) to allow rebase` |
-| 4 | Unstaged modifications to tracked files | DEGRADED | Auto-stash (see Auto-Stash Pattern) | `[hands-free] Pre-flight: auto-stashed N file(s) before pull` |
+| 3 | Current branch is a protected branch (`main`, `master`, `trunk`, `develop`, `production`, `release`) and loop branch guard is active | DEGRADED | Auto-create feature branch `ralph/loop-YYYYMMDD-N`; `git checkout -b ralph/loop-<date>-<N>` | `[hands-free] On protected branch 'main' — created and switched to ralph/loop-20260319-1` |
+| 4 | Staged but uncommitted changes exist | DEGRADED | Auto-commit staged files with message `chore: pre-flight auto-commit [ralph #N]` (or warn if secrets detected) | `[hands-free] Pre-flight: auto-committed N staged file(s) to allow rebase` |
+| 5 | Unstaged modifications to tracked files | DEGRADED | Auto-stash (see Auto-Stash Pattern) | `[hands-free] Pre-flight: auto-stashed N file(s) before pull` |
 
 **BLOCKED** means the iteration cannot safely continue. Hands-free announces the block and stops work for this iteration. Ralph-loop moves to the next iteration (ralph-loop controls termination — do not output the completion promise as a result of a block).
 
@@ -4191,6 +4193,7 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
   },
   "security_grade": "A",
   "active_plan_file": null,
+  "branch": "ralph/loop-20260319-1",
   "written_at": "2026-03-19T13:44:00Z"
 }
 ```
@@ -4207,6 +4210,7 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
 | `test_summary` | object | `passed`, `failed` counts and `last_run` ISO timestamp |
 | `security_grade` | string \| null | Grade from `.claude/security-posture.json`; null if no scan ran |
 | `active_plan_file` | string \| null | Path to PLAN.md or `.claude/plan.md` if it exists; null otherwise |
+| `branch` | string | Current git branch name at time of checkpoint write |
 | `written_at` | string | ISO 8601 timestamp when checkpoint was written |
 
 **`pending_stories` derivation:** Read the active plan file (PLAN.md or `.claude/plan.md`) and extract unchecked story items (`- [ ]` lines). If no plan file exists, use an empty array.
@@ -4264,6 +4268,30 @@ See commit history:
 ```
 
 The PR description is output once, then the mandatory pre-push review checkpoint fires as usual. The user copies the description before approving the push.
+
+### Branch Safety Guard
+
+In loop mode, the branch safety guard prevents accidental commits and pushes to protected branches. It runs as pre-flight condition 3 (before staging or build checks).
+
+**Protected branch list (default):** `main`, `master`, `trunk`, `develop`, `production`, `release`
+
+**CLAUDE.md override syntax:**
+```markdown
+# hands-free overrides
+- Loop protected branches: main, master           # custom list (replaces default)
+- Loop branch guard: off                           # disable entirely
+```
+
+**Auto-branch naming:** `ralph/loop-YYYYMMDD-N` where YYYYMMDD is the current date and N starts at 1, incrementing if the name already exists locally (`git branch --list ralph/loop-YYYYMMDD-*`).
+
+**Push block in loop mode:** When the current branch is in the protected list AND `git push` would target that branch, block the push with:
+```
+[hands-free] Push to protected branch 'main' blocked in loop mode.
+  Merge via PR after review: /hands-free pr-description
+```
+This applies in full/partial/off modes. In crazy-workspace, the push block is also applied (protected branches take precedence over crazy-workspace auto-approve for pushes, to prevent irreversible changes to the default branch even in sandbox mode).
+
+**Outside loop mode:** Branch safety guard is inactive. Normal mode rules govern `git push` behavior.
 
 ## Crazy-Workspace Mode
 

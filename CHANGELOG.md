@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.11.0] — 2026-03-19
+
+### Added
+
+**Branch Safety Guard**
+- `### Branch Safety Guard`: in loop mode, detects when running on a protected branch (`main`, `master`, `trunk`, `develop`, `production`, `release`); auto-creates feature branch `ralph/loop-YYYYMMDD-N` and switches to it
+- Pre-flight condition 3 (renumbered existing 3→4, 4→5): on protected branch → DEGRADED, auto-create and switch to feature branch
+- `git push` to protected branches blocked in loop mode with message pointing to `/hands-free pr-description`; applies even in crazy-workspace mode
+- CLAUDE.md overrides: `Loop protected branches: main, master` (custom list) and `Loop branch guard: off` (disable)
+- `branch` field added to `### Iteration Context Checkpoint` JSON schema and field definitions table
+- Checkpoint announcement includes `branch:` line; notes branch change with `⚠ branch changed` annotation when current branch differs from checkpoint
+
 ## [2.10.0] — 2026-03-19
 
 ### Added
