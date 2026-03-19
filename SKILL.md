@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.4.0
+version: 2.5.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -2735,204 +2735,6 @@ The blocking threshold, disabled scanners, and false-positive whitelists are all
 [auto-commit] feat: add validation to user input form (3 files)
 [auto-commit] fix: handle null response in API client (1 file)
 ```
-
-## Security Scanning
-
-When auto-commit is active, hands-free runs security scans **before staging files**. Scans are project-type-aware — only applicable scanners run.
-
-### Scanner Selection (Project-Type Detection)
-
-| File Present | Scanner Invoked | Command |
-|---|---|---|
-| `Cargo.toml` | cargo-audit | `cargo audit` |
-| `*.py` files | bandit | `bandit -r ./src` (or nearest source dir) |
-| `package.json` | npm audit | `npm audit` |
-| `requirements.txt` or `pyproject.toml` | pip-audit | `pip-audit` |
-| Any source files | semgrep (local only) | `semgrep --config ./rules/ ./` (only if `./rules/` exists) |
-
-**Scanner availability:** Use `command -v <scanner>` to detect availability. Skip unavailable scanners gracefully with: `[security] <scanner> not installed — skipping`
-
-**Time budget:** All scanners together must complete within 30 seconds. If the budget is exceeded, stop remaining scanners and announce: `[security] Scan time budget exceeded — skipping remaining scanners`
-
-### Severity Thresholds and Blocking Behavior
-
-| Severity | Default Behavior | Configurable? |
-|---|---|---|
-| Critical | **BLOCK** auto-commit | Yes — `block-on: none` to warn only |
-| High | Warn, do not block | Yes — `block-on: high` to also block |
-| Medium | Log only | No |
-| Low | Log only | No |
-
-**Blocking announcement:**
-```
-[security] Auto-commit blocked — N critical vulnerabilities found
-  Scanner: <scanner-name>
-  Package: <package-name> (<CVE-ID if available>)
-  Fix: upgrade to <fixed-version>
-  Run /hands-free security for full report
-```
-
-**Warning announcement (high severity, non-blocking):**
-```
-[security] Warning: N high severity findings (not blocking — set block-on: high in CLAUDE.md to block)
-```
-
-### Scan Result Storage
-
-- **Log file:** `.claude/security-scan.log` — appended after each scan
-- **Report file:** `.claude/security-report.md` — overwritten with latest results
-- **`.gitignore` auto-update:** On first scan, hands-free automatically adds `.claude/security-scan.log` and `.claude/security-report.md` to the project's `.gitignore` (if not already present). If no `.gitignore` exists, it is created.
-- **Posture file:** `.claude/security-posture.json` — persists score between sessions
-
-Schema for `.claude/security-posture.json`:
-```json
-{
-  "grade": "A",
-  "lastScan": "2026-03-19T10:00:00Z",
-  "findings": [
-    {
-      "severity": "high",
-      "scanner": "npm-audit",
-      "package": "lodash",
-      "cve": "CVE-2021-23337",
-      "description": "Command injection vulnerability",
-      "fixedIn": "4.17.21"
-    }
-  ]
-}
-```
-
-### Normalized Severity Mapping
-
-Different scanners use different severity names. Normalize as follows:
-
-| Scanner | Scanner Severity | Normalized |
-|---|---|---|
-| cargo-audit | error | critical |
-| cargo-audit | warning | high |
-| bandit | HIGH | high |
-| bandit | MEDIUM | medium |
-| bandit | LOW | low |
-| npm audit | critical | critical |
-| npm audit | high | high |
-| npm audit | moderate | medium |
-| npm audit | low | low |
-| pip-audit | CRITICAL | critical |
-| pip-audit | HIGH | high |
-| pip-audit | MODERATE | medium |
-| pip-audit | LOW | low |
-| semgrep | ERROR | high |
-| semgrep | WARNING | medium |
-| semgrep | INFO | low |
-
-### `/hands-free security` Command
-
-When invoked, runs all applicable scanners and outputs a vulnerability summary:
-
-```
-Security Posture: A (last scan: 2026-03-19 10:00 UTC)
-
-Critical: 0
-High:     2
-  - lodash@4.17.20 (CVE-2021-23337) → fix: upgrade to 4.17.21 [npm-audit]
-  - requests@2.25.0 (CVE-2023-32681) → fix: upgrade to 2.31.0 [pip-audit]
-Medium:   3
-Low:      1
-
-Report written to .claude/security-report.md
-```
-
-If no scan has been run: `Security: unknown — run /hands-free security to scan`
-
-### Integration with `/hands-free status`
-
-The status output includes a Security line:
-
-```
-Hands-Free Status
-  Mode:                 full
-  ...
-  Security:             A (0 critical, 2 high) — last scan: 10 min ago
-```
-
-Grade scale:
-- **A:** 0 critical, < 5 high
-- **B:** 0 critical, 5–15 high
-- **C:** 1–2 critical
-- **D:** 3+ critical
-- **F:** scan failed or blocked
-
-If unknown: `Security: unknown (run /hands-free security)`
-
-### Auto-Commit Integration Flow
-
-```
-1. Task complete → about to auto-commit
-2. Run security scanners (project-type detection)
-3. If critical findings → BLOCK, announce, do NOT stage or commit
-4. If high findings → warn, continue to commit
-5. Stage specific files (git add <files>)
-6. Secrets detection scan (existing behavior)
-7. If secrets found → BLOCK
-8. git commit with message
-9. Append security grade to commit message in loop mode: [ralph #3] feat: add validation [security: A]
-```
-
-### CLAUDE.md Security Overrides
-
-Add a `# hands-free security` section to the project's CLAUDE.md to configure security scanning behavior:
-
-```markdown
-# hands-free security
-- block-on: critical        ← (default) only block auto-commit on critical findings
-- block-on: high            ← block on high AND critical findings
-- block-on: none            ← warn only, never block auto-commit
-- skip-scanners: cargo-audit, bandit   ← comma-separated list of scanners to skip
-- allow-patterns: "test_token", "example_key"   ← whitelist specific false positive patterns
-- disable-security: true    ← disable all security scanning (not recommended)
-```
-
-**`block-on` values:**
-- `critical` (default) — only findings normalized to "critical" severity block auto-commit
-- `high` — findings normalized to "high" or "critical" block auto-commit
-- `none` — all findings are warnings only; auto-commit never blocked by security
-
-**`skip-scanners`** accepts a comma-separated list of scanner names: `cargo-audit`, `bandit`, `npm-audit`, `pip-audit`, `semgrep`
-
-**`allow-patterns`** accepts a comma-separated list of quoted strings. Any secrets detection content signal that matches one of these strings (substring match, case-insensitive) is suppressed and not flagged.
-
-**`disable-security: true`** — completely disables the security scanning step. Use only in repos where scanning is handled externally (e.g., CI pipeline with tighter controls). This setting does NOT disable the existing secrets detection hard stop — that runs regardless.
-
-**Interaction with other settings:**
-- Security settings are independent of hands-free mode (full/partial/off/crazy-workspace)
-- Security overrides apply whenever auto-commit is active
-- `disable-security: true` does not disable the universal secrets detection in staged files
-- CLAUDE.md security settings take precedence over any learned preferences
-
-### Graceful Degradation
-
-- **Scanner not installed:** Skip with `[security] cargo-audit not installed — skipping. Install with: cargo install cargo-audit`
-- **Scan times out (30s budget):** Stop and warn: `[security] Scan budget exceeded — partial results only`
-- **Scanner output unparseable:** Log raw output to `.claude/security-scan.log`, treat as warning (non-blocking)
-- **`.claude/` directory doesn't exist:** Create it silently on first scan
-
-### Troubleshooting
-
-**"Security scan is blocking auto-commit unexpectedly"**
-Check: What scanner flagged a critical? Run `/hands-free security` for the full report. To temporarily bypass: add `block-on: none` to `# hands-free security` in CLAUDE.md, fix the vulnerability, then remove the override.
-
-**"Scanner is running but I didn't install it"**
-The scanner was already on your PATH (installed globally). To skip it for this project: `skip-scanners: <scanner-name>` in `# hands-free security` CLAUDE.md section.
-
-**"semgrep is not running even though I have rules"**
-Semgrep only runs when `./rules/` directory exists in the project root. Check: `ls ./rules/`. Only local rules run (`--config ./rules/`) — remote configs (`--config auto`) are not auto-invoked (see Shell Command Auto-Pass Rules).
-
-**"Security scan is slow"**
-The 30-second time budget applies across all scanners. To speed up: `skip-scanners: bandit` (Python AST scan is often the slowest). cargo-audit and npm-audit are typically fast.
-
-**"False positive blocking my commit"**
-Add the pattern to the whitelist: `allow-patterns: "your-pattern"` in `# hands-free security` CLAUDE.md. Then run `/hands-free security` to confirm the finding is suppressed, then retry auto-commit.
-
 ## Learning
 
 Preferences stored in `~/.claude/skills/hands-free/preferences.md`. Records choices whether hands-free is on or off.
@@ -3696,6 +3498,30 @@ Add a `# hands-free security` section to your project's CLAUDE.md to customize s
 **`skip-scanners`** — accepted values: `cargo-audit`, `bandit`, `npm-audit`, `pip-audit`, `semgrep`.
 
 **`allow-patterns`** — strings that, if found in a finding's description or package name, suppress that finding from blocking. They are still logged.
+
+### Graceful Degradation
+
+- **Scanner not installed:** Skip with `[security] cargo-audit not installed — skipping. Install with: cargo install cargo-audit`
+- **Time budget exceeded (30s across all scanners):** Stop and warn: `[security] Scan budget exceeded — partial results only`
+- **Scanner output unparseable:** Log raw output to `.claude/security-scan.log`, treat as warning (non-blocking)
+- **`.claude/` directory doesn't exist:** Create it silently on first scan
+
+### Troubleshooting
+
+**"Security scan is blocking auto-commit unexpectedly"**
+Check: What scanner flagged a critical? Run `/hands-free security` for the full report. To temporarily bypass: add `block-on: none` to `# hands-free security` in CLAUDE.md, fix the vulnerability, then remove the override.
+
+**"Scanner is running but I didn't install it"**
+The scanner was already on your PATH (installed globally). To skip it for this project: `skip-scanners: <scanner-name>` in `# hands-free security` CLAUDE.md section.
+
+**"semgrep is not running even though I have rules"**
+Semgrep only runs when `./rules/` directory exists in the project root. Check: `ls ./rules/`. Only local rules run (`--config ./rules/`) — remote configs (`--config auto`) are not auto-invoked (see Shell Command Auto-Pass Rules).
+
+**"Security scan is slow"**
+The 30-second time budget applies across all scanners. To speed up: `skip-scanners: bandit` (Python AST scan is often the slowest). cargo-audit and npm-audit are typically fast.
+
+**"False positive blocking my commit"**
+Add the pattern to the whitelist: `allow-patterns: "your-pattern"` in `# hands-free security` CLAUDE.md. Then run `/hands-free security` to confirm the finding is suppressed, then retry auto-commit.
 
 ## Ralph Loop Integration
 

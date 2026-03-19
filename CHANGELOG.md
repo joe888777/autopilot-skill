@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.5.0] — 2026-03-19
+
+### Added
+
+**Security Automation Toolkit**
+- Pre-commit security scanning runs automatically before every auto-commit; project-type-aware (detects Rust/Python/Node/pip from root files)
+- Supported scanners: `cargo audit`, `bandit`, `npm audit`, `pip-audit`, `semgrep` (local rules only)
+- Critical findings block auto-commit with announcement; high findings warn only; medium/low logged silently
+- Severity normalization maps scanner-specific levels (bandit HIGH, npm moderate, cargo error) to canonical critical/high/medium/low
+- Security posture grade (A–F) computed after each scan and written to `.claude/security-posture.json`
+- `/hands-free security` command: displays current vulnerability summary by severity; `--scan` flag forces immediate rescan
+- CLAUDE.md `# hands-free security` section: `block-on: critical/high/none`, `skip-scanners:`, `allow-patterns:` overrides
+- Scan output files auto-added to `.gitignore` on first scan: `security-scan.log`, `security-posture.json`, `security-report.md`
+- Grade displayed in `/hands-free status` output and in ralph-loop iteration announcements
+- Loop integration: auto-commit messages tagged with security grade (`[ralph #N] feat: add X [security: A]`); grade C/D/F reroutes to systematic-debugging with top findings as context
+
+**Enhanced Secrets Detection**
+- Extended assignment patterns: `webhook_secret=`, `encryption_key=`, `jwt_secret=`, `session_secret=`, `master_key=`
+- JWT token detection: `eyJ` literal prefix in non-test code
+- Cloudflare token patterns: `CF_API_TOKEN=` (non-placeholder), `CF_API_KEY=`
+- HashiCorp Vault tokens: `s.` (24+ chars), `hvs.` prefix
+- GITHUB_TOKEN, GITLAB_TOKEN environment variable assignment patterns
+
+**Documentation**
+- `## Security Automation` section added with scanner reference, severity table, posture grades, override syntax, graceful degradation, and troubleshooting
+- README `## Security Automation` section added
+
 ## [2.3.0] — 2026-03-17
 
 ### Added (iteration 6–7)
