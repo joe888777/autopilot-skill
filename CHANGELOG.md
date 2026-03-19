@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.25.0] — 2026-03-19
+
+### Added
+
+**Iteration Time Budget**
+- `Loop iteration budget: N` CLAUDE.md directive — warns when an iteration runs longer than N minutes
+- When exceeded, announces once per iteration: `[hands-free] Warning: iteration N has run for X minutes (budget: N min) — consider /hands-free loop-skip to advance or wait for natural completion`
+- Warning is advisory only; hands-free never auto-skips based on time alone
+- Default: absent (no budget configured, no time tracking)
+- New `### Iteration Time Budget` sub-section in `## Ralph Loop Integration`
+- Directive added to Available Persistent Settings table
+
 ## [2.24.0] — 2026-03-19
 
 ### Added
