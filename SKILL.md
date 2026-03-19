@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.8.0
+version: 2.9.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -29,6 +29,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 > | Auto-remediate vulnerabilities on demand | `/hands-free security fix` |
 > | Check workspace health (git, build, tests, security) | `/hands-free health` |
 > | Print iteration checkpoint summary (read-only) | `/hands-free context` |
+> | Record current test results as regression baseline | `/hands-free test-baseline` |
 >
 > **Always blocked (all modes):** `curl|bash`, `source <(curl)`, language RCE (`python -c exec`, `node -e eval`, `deno run <url>`), `chmod 777`, secrets in commits, `rm -rf *`, `rm -rf .git`
 
@@ -60,6 +61,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 /hands-free security fix  # on-demand remediation: auto-fix medium/low, emit fix cmds for high/critical
 /hands-free health       # workspace health report (git state, build, tests, security posture)
 /hands-free context      # print iteration checkpoint summary (read-only)
+/hands-free test-baseline  # run tests now and record pass/fail counts as the regression baseline
 ```
 
 **Mode persistence:** Hands-free mode is **session-scoped** — it resets at the start of each new conversation. For consistent defaults, add to the project's CLAUDE.md:
@@ -2589,6 +2591,43 @@ Example sequence:
 - If `git status` shows merge conflicts (both-modified files), skip auto-commit entirely and announce: `[auto-commit] Skipping — merge conflicts present. Resolve before committing.`
 - **Security scan runs before every auto-commit** — see "## Security Scanning" for scanner details and blocking behavior
 
+### Test Regression Guard
+
+Run after deciding to auto-commit but **before** staging any files (`git add`). Detects when the current change introduces new test failures compared to the last checkpoint baseline.
+
+**Execution order in auto-commit flow:**
+1. Decide to auto-commit (milestone reached)
+2. **Run test regression check** ← new step
+3. Run secrets detection
+4. Stage specific files with `git add`
+5. Commit
+
+**How the check works:**
+
+1. Detect the project's test command (same project-type logic as build state health check):
+   - Rust (`Cargo.toml`): `cargo test 2>&1`
+   - Python (`pyproject.toml` / `setup.py`): `pytest --tb=no -q 2>&1`
+   - Node.js/TypeScript (`package.json`): `npm test --silent 2>&1`
+   - Go (`go.mod`): `go test ./... 2>&1`
+   - No match: skip check (see below)
+
+2. Parse passed/failed counts from test output. Extract the failure count.
+
+3. Compare to checkpoint's `test_summary.failed`:
+   - **No checkpoint / stale checkpoint / malformed**: skip check, allow commit (no baseline to compare against)
+   - **`current_failed == 0` or `current_failed <= checkpoint_failed`**: no regression — allow commit
+   - **`current_failed > checkpoint_failed`**: regression detected → **block commit**
+
+4. On regression detected:
+   - Announce: `[auto-commit] Blocked — N new test failure(s) detected (was M, now M+N). Routing to systematic-debugging.`
+   - Do NOT stage or commit any files
+   - Route to systematic-debugging with the delta in the brief: `N new test failures introduced since last checkpoint`
+
+5. No test runner detected: skip check, allow commit with one-time announcement:
+   - `[auto-commit] No test runner detected — skipping regression check`
+
+**Note:** The regression check only blocks on *new* failures (`current > baseline`). If tests were already failing before and the count didn't increase, the commit proceeds — the loop is not blocked by pre-existing failures that it hasn't fixed yet.
+
 ### Secrets Detection
 
 Run before every auto-commit (including crazy-workspace, no exceptions).
@@ -3022,6 +3061,39 @@ Hands-Free Context — checkpoint unreadable
 ```
 
 `/hands-free context` is safe to call at any time, inside or outside a loop. It is a diagnostic read of the checkpoint file only.
+
+## `/hands-free test-baseline`
+
+When invoked, run the project's test suite immediately and record the pass/fail counts in `.claude/iteration-checkpoint.json` as the new regression baseline. Use this after intentionally changing tests (adding, removing, or skipping test cases) so the regression guard doesn't flag the expected delta.
+
+**Steps:**
+
+1. Detect the project's test command (same logic as build health check)
+2. Run the test suite and parse passed/failed counts
+3. Update (or create) `.claude/iteration-checkpoint.json`:
+   - If the file exists and is valid: update only the `test_summary` field and `written_at`
+   - If the file is missing or malformed: create a minimal checkpoint with just `test_summary` and `written_at`
+4. Announce result
+
+**Output on success:**
+```
+[test-baseline] Baseline set — 24 passed / 0 failed (2026-03-19T14:00:00Z)
+  Checkpoint updated: .claude/iteration-checkpoint.json
+```
+
+**Output when no test runner detected:**
+```
+[test-baseline] No test runner detected — baseline not updated
+  Ensure a supported project file exists (Cargo.toml, pyproject.toml, package.json, go.mod)
+```
+
+**Output when tests are currently failing:**
+```
+[test-baseline] Baseline set — 20 passed / 4 failed (2026-03-19T14:05:00Z)
+  Note: baseline includes 4 failing tests. Regression guard will only block if failures increase above 4.
+```
+
+`/hands-free test-baseline` works in all modes (full, partial, off, crazy-workspace) and outside loop mode.
 
 ## `/hands-free dry-run`
 

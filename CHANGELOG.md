@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.9.0] — 2026-03-19
+
+### Added
+
+**Test Regression Guard**
+- `### Test Regression Guard`: pre-commit check runs the project's test suite and compares `current_failed` against `checkpoint.test_summary.failed`; if new failures appeared, blocks the commit and routes to systematic-debugging with the delta
+- Block announce format: `[auto-commit] Blocked — N new test failure(s) detected (was M, now M+N). Routing to systematic-debugging.`
+- Regression check skipped when no checkpoint, stale checkpoint, or no test runner detected
+- `/hands-free test-baseline`: run tests now and record pass/fail counts as the new baseline; updates `test_summary` in checkpoint file; creates minimal checkpoint if none exists
+- `/hands-free test-baseline` added to Commands block and Quick Reference table
+
 ## [2.8.0] — 2026-03-19
 
 ### Added
