@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.32.0] — 2026-03-19
+
+### Added
+- `Loop max duration: N` CLAUDE.md directive: fires a HARD STOP at the start of an iteration when total loop session time exceeds N minutes
+- Check runs at iteration boundaries only — in-progress iterations are never interrupted
+- `/hands-free resume` continues; duration re-evaluated at next iteration start
+- New row added to Available Persistent Settings table
+
 ## [2.31.0] — 2026-03-19
 
 ### Added
