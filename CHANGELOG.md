@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.48.0] — 2026-03-19
+
+### Added
+- `Loop skip on no changes: warn` CLAUDE.md directive: emits a visible notice instead of silently skipping when an iteration produces no file changes
+- No-changes detection via `git status --short` empty output
+- Session log always captures the skip event regardless of setting
+- Notice suppressed when `Loop quiet mode: on` is active
+- New row added to Available Persistent Settings table
+
 ## [2.47.0] — 2026-03-19
 
 ### Added
