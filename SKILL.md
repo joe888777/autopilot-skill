@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.13.0
+version: 2.14.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -3969,7 +3969,7 @@ Check for `.claude/.ralph-loop.local.md` at the start of each iteration. If pres
   pending     : (none)
   tests       : 12 passed / 0 failed (2026-03-19T13:42:00Z)
   security    : A
-  health      : 87/100 (T:100 S:100 V:100 C:100)
+  health      : 87/100 (T:100 S:100 V:100 C:100) ↑
 ```
 
 Security grade is included only if `.claude/security-posture.json` exists; omit if no scan has run. Health score is included if `health_score` is present in the checkpoint; omit if null or missing. The `pending` line lists incomplete stories from `active_plan_file`; show `(none)` when all are done or no plan exists. The `branch` line is included if the checkpoint has a `branch` field; if the current branch differs from the checkpoint branch, add `⚠ branch changed` annotation: `branch: ralph/loop-20260319-1 → main ⚠ branch changed`.
@@ -4242,6 +4242,7 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
     "total_commits": 9
   },
   "health_score": 87,
+  "health_history": [72, 78, 83, 85, 87],
   "written_at": "2026-03-19T13:44:00Z"
 }
 ```
@@ -4266,6 +4267,7 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
 | `metrics.total_stories_completed` | int | Running total of stories completed across all iterations; additive, never reset |
 | `metrics.total_commits` | int | Running total of `[ralph #N]` commits across all iterations; additive, never reset |
 | `health_score` | int \| null | Composite 0-100 health score computed from four pillars; null if no prior iteration data available |
+| `health_history` | int[] | FIFO array of last 5 `health_score` values (oldest first, newest last); updated each iteration by appending `health_score` then pruning to 5; omitted when `health_score` is null |
 | `written_at` | string | ISO 8601 timestamp when checkpoint was written |
 
 **`pending_stories` derivation:** Read the active plan file (PLAN.md or `.claude/plan.md`) and extract unchecked story items (`- [ ]` lines). If no plan file exists, use an empty array.
@@ -4307,6 +4309,23 @@ Each iteration, hands-free computes a **composite 0-100 health score** from four
 **Overall score:** Integer average of T + S + V + C, rounded to nearest int (round half-up). Stored as `health_score` in the checkpoint.
 
 **Null handling:** If the checkpoint has no `metrics` (first iteration) or no `test_summary`, substitute 50 for any pillar that lacks the data it needs.
+
+**Trend direction:** Computed from `health_history` at the start of each iteration (before writing the new score):
+
+| Condition | Trend | Arrow |
+|---|---|---|
+| `len(health_history) < 2` | stable | → |
+| `health_history[-1] > health_history[0]` | improving | ↑ |
+| `health_history[-1] < health_history[0]` | declining | ↓ |
+| `health_history[-1] == health_history[0]` | stable | → |
+
+The trend arrow is appended to the `health` line in the iteration announcement: `health: 87/100 (T:100 S:80 V:100 C:80) ↑`
+
+**Regression warning:** If `len(health_history) >= 2` AND `health_score < max(health_history) − 20`, fire once per iteration:
+```
+[hands-free] Warning: Health regression — score dropped N points from peak (peak: X, current: Y). Review failing pillars.
+```
+This warning is informational only — it does not pause or block the loop.
 
 ### PR Auto-Description
 

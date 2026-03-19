@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.14.0] — 2026-03-19
+
+### Added
+
+**Health Score History & Trend Analysis**
+- `health_history` field in `.claude/iteration-checkpoint.json`: FIFO int[] of last 5 health scores (oldest first), updated on every checkpoint write by appending `health_score` then pruning to 5; omitted when `health_score` is null
+- Trend direction computed from `health_history`: improving (↑) when last > first, declining (↓) when last < first, stable (→) otherwise or when insufficient data
+- Trend arrow appended to `health` line in iteration announcement: `health: 87/100 (T:100 S:80 V:100 C:80) ↑`
+- Regression warning when `health_score < max(health_history) − 20`: `[hands-free] Warning: Health regression — score dropped N points from peak (peak: X, current: Y). Review failing pillars.` (informational, does not pause the loop)
+- `health_history` field definition added to checkpoint field table
+
+---
+
 ## [2.13.0] — 2026-03-19
 
 ### Added
