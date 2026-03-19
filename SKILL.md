@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.20.0
+version: 2.21.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -3417,6 +3417,19 @@ Total events: 87
 ```
 Each event includes: event type, skill context, decision made, and source (recommended / preference / mode-default / user-override).
 
+**Timestamp mode (`Loop timestamps: on`):** When this CLAUDE.md directive is set, every session log entry is prefixed with `[HH:MM]` in 24h local time. Example with timestamps enabled:
+
+```
+Hands-Free Session Log (full, learning: high, timestamps: on)
+  [14:23] [brainstorming] approach 2 (recommended)
+  [14:24] [writing-plans] subagent-driven (your preference)
+  [14:25] [review-checkpoint] writing-plans → executing-plans — user chose [C] Continue
+  [14:31] [auto-commit] feat: add validation to form (2 files)
+  [14:38] [auto-stop] consecutive-failure: test_user_auth — iteration 7 halted
+```
+
+When `Loop timestamps: off` (default), entries appear without the `[HH:MM]` prefix as shown in the standard log format above.
+
 ## `/hands-free explain`
 
 When invoked, explain the reasoning behind the most recent auto-accept **or hard stop** decision:
@@ -4538,6 +4551,7 @@ Hands-free reads CLAUDE.md at the start of each session. Use a `# hands-free ove
 | `Loop tag: <format>` | `Loop tag: [loop #N]` | Custom auto-commit tag prefix; `N` is replaced with the iteration number; use `Loop tag: off` to suppress the tag entirely (default: `[ralph #N]`) |
 | `Loop failure guard: off` | `Loop failure guard: off` | Disables the consecutive-failure guard entirely |
 | `Loop failure repeat: N` | `Loop failure repeat: 5` | Overrides the default consecutive failure count (default: 3) |
+| `Loop timestamps: on/off` | `Loop timestamps: on` | When `on`, prefixes every session log entry with `[HH:MM]` (24h local time); default: `off` |
 
 ### Command-Level Overrides
 

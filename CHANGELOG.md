@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.21.0] — 2026-03-19
+
+### Added
+
+**Iteration Timestamp Logging (`Loop timestamps:` directive)**
+- New `Loop timestamps: on/off` CLAUDE.md directive in Available Persistent Settings table
+- When `on`, prefixes every session log entry with `[HH:MM]` in 24h local time (e.g., `[14:23] [auto-commit] feat: add validation`)
+- Session Log section updated with timestamped example block demonstrating the format
+- Default is `off`; existing log format unchanged unless directive is present
+
+---
+
 ## [2.20.0] — 2026-03-19
 
 ### Added
