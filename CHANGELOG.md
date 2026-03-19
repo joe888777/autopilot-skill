@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.19.0] — 2026-03-19
+
+### Added
+
+**Custom Auto-Commit Tag (`Loop tag:` CLAUDE.md directive)**
+- New `Loop tag:` directive in `## CLAUDE.md Override Reference` Available Persistent Settings table; format: `Loop tag: [loop #N]`; N replaced with iteration number at commit time
+- `Loop tag: off` suppresses the tag prefix entirely — commits have no loop tag
+- Default remains `[ralph #N]` when no directive is present
+- Iteration-Aware Auto-Commits paragraph in `## Ralph Loop Integration` updated with tag configurability note referencing the CLAUDE.md directive
+
+---
+
 ## [2.18.0] — 2026-03-19
 
 ### Added
