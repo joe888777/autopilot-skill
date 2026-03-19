@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.17.0] — 2026-03-19
+
+### Added
+
+**Loop Completion Summary**
+- When the completion promise evaluates to true, outputs a structured box-drawing summary block before routing to finishing-a-development-branch: iterations used, stories done, commits made, final health score with trend arrow, velocity trend sparkline
+- Missing fields substitute `N/A` rather than omitting lines; summary fires exactly once per run; precedes the mandatory pre-push review checkpoint
+
+### Changed
+
+**Metrics Sparkline Alignment**
+- `/hands-free metrics` sparkline mapping updated from legacy 6-category rule to the v2.16.0 standardized 8-level formula: value 0→▁; max→█; all equal non-zero→all █; others scaled linearly
+
 ## [2.16.0] — 2026-03-19
 
 ### Added

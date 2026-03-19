@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.16.0
+version: 2.17.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -3179,7 +3179,7 @@ Hands-Free Loop Metrics
   Total: 12 stories, 14 commits across N iterations
 ```
 
-**Sparkline mapping** (0 → ▁, 1 → ▂, 2-3 → ▃, 4-5 → ▄, 6+ → █): relative to the values in `velocity_trend`. The table shows last 5 iterations (or fewer if the loop is young).
+**Sparkline mapping** (v2.16.0 standard, 8 levels): value `0` → ▁; max value in array → █; all equal non-zero → all █; other values scaled linearly across 8 Unicode block levels (▁▂▃▄▅▆▇█). The table shows last 5 iterations (or fewer if the loop is young).
 
 **Output states:**
 
@@ -4353,6 +4353,26 @@ Hands-free monitors two conditions each iteration and halts work (without termin
 4. Waits for the user to type "continue" before the next iteration resumes
 
 **ralph-loop is NOT terminated** — the loop itself continues to the next iteration once the user resumes. Only the current iteration's work is halted.
+
+### Loop Completion Summary
+
+When the completion promise evaluates to true, hands-free outputs a structured summary block immediately before routing to the `finishing-a-development-branch` phase. The summary fires exactly once per loop run.
+
+**Format:**
+```
+[hands-free] Loop complete — promise met at iteration N
+┌─────────────────────────────────────────────┐
+│  Iterations used : N / max                  │
+│  Stories done    : total_stories_completed  │
+│  Commits made    : total_commits            │
+│  Final health    : 87/100 (T:100 S:80 V:100 C:80) ↑ │
+│  Velocity trend  : [3,2,4,0,1] ▄▃▆▁▂       │
+└─────────────────────────────────────────────┘
+```
+
+**Data sources:** `iteration` (from loop state file), `max_iterations` (from loop state file), `metrics.total_stories_completed`, `metrics.total_commits`, `health_score` + trend arrow (from checkpoint), `metrics.velocity_trend` + sparkline (v2.16.0 8-level formula). If any field is unavailable, substitute `N/A` rather than omitting the line.
+
+**Sequencing:** The completion summary precedes the mandatory pre-push review checkpoint — the user sees the summary, then the checkpoint fires for confirmation before any push or merge.
 
 ### PR Auto-Description
 
