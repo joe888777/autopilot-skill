@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.52.0] — 2026-03-19
+
+### Added
+- `Loop dry run: on/off` CLAUDE.md directive: executes all planning, editing, and test-running steps normally but skips auto-commit and auto-push
+- Prints dry-run summary instead of committing: `[hands-free] Dry run: would commit N files — <list>`
+- Staged changes remain in working tree after the iteration (not reverted); completion promise still evaluated
+- New row added to Available Persistent Settings table
+
 ## [2.51.0] — 2026-03-19
 
 ### Added
