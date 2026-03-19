@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.12.0] — 2026-03-19
+
+### Added
+
+**Loop Metrics & Velocity Tracking**
+- `metrics` object in `.claude/iteration-checkpoint.json`: `stories_completed_this_iteration`, `commits_this_iteration`, `velocity_trend` (FIFO array of last 5 story counts), `total_stories_completed`, `total_commits`
+- `### Metrics Tracking` sub-section under `## Ralph Loop Integration`: update rules, FIFO pruning, initialisation from zero
+- `/hands-free metrics` command: read-only velocity table (last 5 iterations) + sparkline (▁▂▃▄█) + totals footer; 4 output states (present/missing-field/no-file/malformed)
+- Velocity stall detection: if last 3 entries of `velocity_trend` are all `0`, fire velocity-specific stall warning alongside existing same-test and same-files checks
+- `## Metrics` section in PR auto-description body: average velocity, total stories/commits, sparkline trend
+- `/hands-free metrics` added to Commands block and Quick Reference table
+
+---
+
 ## [2.11.0] — 2026-03-19
 
 ### Added

@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.11.0
+version: 2.12.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -31,6 +31,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 > | Print iteration checkpoint summary (read-only) | `/hands-free context` |
 > | Record current test results as regression baseline | `/hands-free test-baseline` |
 > | Generate PR title and body from checkpoint data | `/hands-free pr-description` |
+> | Show loop velocity metrics and trend | `/hands-free metrics` |
 >
 > **Always blocked (all modes):** `curl|bash`, `source <(curl)`, language RCE (`python -c exec`, `node -e eval`, `deno run <url>`), `chmod 777`, secrets in commits, `rm -rf *`, `rm -rf .git`
 
@@ -64,6 +65,7 @@ Auto-accept recommended options from any skill without pausing. Works with super
 /hands-free context      # print iteration checkpoint summary (read-only)
 /hands-free test-baseline  # run tests now and record pass/fail counts as the regression baseline
 /hands-free pr-description  # generate PR title and body from checkpoint + git log
+/hands-free metrics          # show loop velocity metrics and trend (read-only)
 ```
 
 **Mode persistence:** Hands-free mode is **session-scoped** — it resets at the start of each new conversation. For consistent defaults, add to the project's CLAUDE.md:
@@ -3151,6 +3153,39 @@ To create: gh pr create --title "Add security remediation automation" --body "$(
 
 `/hands-free pr-description` works in all modes and outside loop mode.
 
+## `/hands-free metrics`
+
+When invoked, print a velocity summary of the current loop run using data from `.claude/iteration-checkpoint.json`. Read-only — never modifies the checkpoint.
+
+**Output format:**
+
+```
+Hands-Free Loop Metrics
+  Iteration  Stories  Commits
+  ─────────  ───────  ───────
+  N-4        2        3
+  N-3        3        4
+  N-2        1        2
+  N-1        3        3
+  N          3        2
+
+  Trend: ▃▄▂▄▄
+  Total: 12 stories, 14 commits across N iterations
+```
+
+**Sparkline mapping** (0 → ▁, 1 → ▂, 2-3 → ▃, 4-5 → ▄, 6+ → █): relative to the values in `velocity_trend`. The table shows last 5 iterations (or fewer if the loop is young).
+
+**Output states:**
+
+| Condition | Output |
+|---|---|
+| Checkpoint present with `metrics` field | Full table + sparkline + totals |
+| Checkpoint present but `metrics` field missing | `[metrics] No velocity data yet — metrics tracked from next iteration` |
+| No checkpoint file | `[metrics] No checkpoint found — run at least one loop iteration first` |
+| Malformed checkpoint JSON | `[metrics] Checkpoint unreadable — cannot display metrics` |
+
+`/hands-free metrics` works in all modes and outside loop mode. If called outside a loop (no `.claude/.ralph-loop.local.md`), it still reads the checkpoint and displays whatever metrics data is present.
+
 ## `/hands-free dry-run`
 
 When invoked, simulate what the current mode + learning settings would auto-accept **without actually enabling hands-free or changing any state**. Read-only — no side effects.
@@ -4166,8 +4201,9 @@ A stall is defined as any of:
 - The same set of files modified across the last 3 iterations (no new files touched)
 - No new commits (with or without `[ralph #N]` tags) in the last 3 iterations
 - The same error message or exception type appearing in the last 3 iterations without a different fix being attempted
+- **Velocity stall**: `len(velocity_trend) >= 3` AND the last 3 entries in `metrics.velocity_trend` from the checkpoint are all `0` — fires the velocity-specific warning: `[hands-free] Warning: Velocity stall — 0 stories completed in last 3 iterations (trend: 0, 0, 0). Pausing for user input.`
 
-**Partial progress is NOT a stall:** If each iteration fixes at least one previously-failing test (even if new failures appear), it's not a stall — progress is being made. The stall warning fires only when ZERO improvement is detectable across 3 consecutive iterations.
+**Partial progress is NOT a stall:** If each iteration fixes at least one previously-failing test (even if new failures appear), it's not a stall — progress is being made. The stall warning fires only when ZERO improvement is detectable across 3 consecutive iterations. Similarly, a velocity stall requires all 3 of the last trend values to be `0` — a single productive iteration resets it.
 
 ### Iteration Context Checkpoint
 
@@ -4194,6 +4230,13 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
   "security_grade": "A",
   "active_plan_file": null,
   "branch": "ralph/loop-20260319-1",
+  "metrics": {
+    "stories_completed_this_iteration": 3,
+    "commits_this_iteration": 2,
+    "velocity_trend": [2, 3, 1, 3, 3],
+    "total_stories_completed": 12,
+    "total_commits": 9
+  },
   "written_at": "2026-03-19T13:44:00Z"
 }
 ```
@@ -4211,11 +4254,36 @@ At the **end of every loop iteration** (after auto-commit completes), hands-free
 | `security_grade` | string \| null | Grade from `.claude/security-posture.json`; null if no scan ran |
 | `active_plan_file` | string \| null | Path to PLAN.md or `.claude/plan.md` if it exists; null otherwise |
 | `branch` | string | Current git branch name at time of checkpoint write |
+| `metrics` | object | Velocity data object; written on every checkpoint update |
+| `metrics.stories_completed_this_iteration` | int | Count of stories closed during the current iteration |
+| `metrics.commits_this_iteration` | int | Count of `[ralph #N]`-tagged commits in the current iteration |
+| `metrics.velocity_trend` | int[] | FIFO array of last 5 `stories_completed_this_iteration` values (oldest first); pruned to 5 on each write |
+| `metrics.total_stories_completed` | int | Running total of stories completed across all iterations; additive, never reset |
+| `metrics.total_commits` | int | Running total of `[ralph #N]` commits across all iterations; additive, never reset |
 | `written_at` | string | ISO 8601 timestamp when checkpoint was written |
 
 **`pending_stories` derivation:** Read the active plan file (PLAN.md or `.claude/plan.md`) and extract unchecked story items (`- [ ]` lines). If no plan file exists, use an empty array.
 
 **If no auto-commit occurred** (iteration produced no code changes): write the checkpoint anyway with `last_commit_sha` and `last_commit_message` from the most recent `git log` entry, and empty `completed_stories`.
+
+### Metrics Tracking
+
+The `metrics` object inside the checkpoint is updated on every checkpoint write. It tracks velocity across iterations to detect progress trends and stalls.
+
+**Update rules:**
+- `stories_completed_this_iteration`: count of story IDs in `completed_stories` for this write (length of the array)
+- `commits_this_iteration`: count `[ralph #N]` commits added since previous checkpoint `written_at` using `git log --oneline --after=<prev_written_at>`
+- `velocity_trend`: append `stories_completed_this_iteration` to existing array, then drop oldest entries until length ≤ 5 (FIFO)
+- `total_stories_completed`: previous total + `stories_completed_this_iteration`
+- `total_commits`: previous total + `commits_this_iteration`
+- On the very first checkpoint write: initialise all fields from zero (no previous data)
+
+**Stall detection using velocity_trend:** If `len(velocity_trend) >= 3` AND the last 3 values in `velocity_trend` are all `0`, fire the velocity stall warning (in addition to the existing same-test and same-files stall checks):
+```
+[hands-free] Warning: Velocity stall — 0 stories completed in last 3 iterations (trend: 0, 0, 0). Pausing for user input.
+  Consider narrowing scope, switching to a different failing test, or reviewing the plan.
+Pausing — type 'continue' to proceed anyway or describe a new approach.
+```
 
 ### PR Auto-Description
 
@@ -4247,6 +4315,10 @@ Grade: A — no vulnerabilities detected
 
 Completed in 3 iterations, 7 commits
 
+## Metrics
+
+Average velocity: 4.0 stories/iteration | Total: 12 stories, 9 commits | Trend: ▃▄▂▄▄
+
 🤖 Generated by hands-free ralph-loop
 ```
 
@@ -4255,6 +4327,7 @@ Completed in 3 iterations, 7 commits
 - **Test Results**: `test_summary` from checkpoint; omit section if unavailable
 - **Security Posture**: `grade` from `.claude/security-posture.json`; omit section if file missing
 - **Iteration Stats**: `iteration` field from checkpoint; commit count from `git rev-list --count origin/main..HEAD`
+- **Metrics**: `metrics.total_stories_completed / metrics.velocity_trend length` for average velocity; `metrics.total_stories_completed` and `metrics.total_commits` for totals; sparkline from `velocity_trend`; omit section if `metrics` field missing from checkpoint
 
 **If no checkpoint available:** emit minimal body using git log only:
 ```markdown
