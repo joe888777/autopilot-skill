@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.44.0] — 2026-03-19
+
+### Added
+- `Loop test command: <cmd>` CLAUDE.md directive: overrides auto-detected test runner for all loop health checks
+- Override applies to build health check, promise evaluation, regression tracking, max-failures, and auto-stop health floor
+- Exit code 0 = pass; non-zero = fail; failure count extracted from output on best-effort basis
+- When absent, auto-detection from project type (Rust/Python/TypeScript/Go) proceeds as before
+- New row added to Available Persistent Settings table
+
 ## [2.43.0] — 2026-03-19
 
 ### Added
