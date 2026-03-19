@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.41.0] — 2026-03-19
+
+### Changed
+- `Loop auto-push` push failure handling upgraded from silent-continue to HARD STOP
+- Push failures now fire: `[hands-free] HARD STOP — Auto-push failed: <error>. Resolve the issue and run /hands-free resume to continue.`
+- Added pre-push announcement: `[hands-free] Auto-push: pushing N commit(s) to origin/<branch>`
+- Added success confirmation: `[hands-free] Auto-push: pushed successfully`
+- Available Persistent Settings table updated to reflect HARD STOP semantics
+
 ## [2.40.0] — 2026-03-19
 
 ### Added
