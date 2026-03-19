@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.50.0] — 2026-03-19
+
+### Added
+- `Loop pre-iteration hook: <cmd>` CLAUDE.md directive: runs a shell command at the start of each iteration before any other work
+- Exit code 0 = proceed; non-zero = HARD STOP with message referencing the failed command and exit code
+- After `/hands-free resume`, the iteration proceeds without re-running the hook
+- Command follows cwd-scope auto-pass classification rules
+- New row added to Available Persistent Settings table
+
 ## [2.49.0] — 2026-03-19
 
 ### Added
