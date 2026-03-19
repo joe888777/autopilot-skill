@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.28.0] — 2026-03-19
+
+### Added
+- `Loop max failures: N` CLAUDE.md directive: fires a HARD STOP after N consecutive iterations all end with test failures
+- Failure count resets to zero when any iteration completes with all tests passing
+- Indeterminate test results do not increment the failure count
+- New row added to Available Persistent Settings table
+
 ## [2.27.0] — 2026-03-19
 
 ### Added
