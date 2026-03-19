@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.52.0
+version: 2.53.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -4579,6 +4579,33 @@ When `Loop commit prefix: <prefix>` is set in CLAUDE.md, hands-free uses the spe
 
 **Default:** absent — `[ralph #N]` prefix is used for all loop mode auto-commits.
 
+### Loop Commit Template
+
+When `Loop commit template: <template>` is set in CLAUDE.md, hands-free renders the template to produce the full auto-commit message for each loop-mode auto-commit.
+
+**Supported placeholders:**
+
+| Placeholder | Replaced with |
+|---|---|
+| `{N}` | Current iteration number |
+| `{type}` | Inferred conventional commit type (e.g. `feat`, `fix`, `refactor`, `test`, `docs`, `chore`) |
+| `{msg}` | Inferred commit description (same inference as current auto-commit logic) |
+| `{files}` | Comma-separated list of changed filenames (first 3 files; if more than 3, truncated with `...`) |
+
+**Relationship to `Loop commit prefix`:** When `Loop commit template` is set, `Loop commit prefix` is ignored for that session.
+
+**Examples:**
+
+| Setting | Result (iteration 3, 2 files) |
+|---|---|
+| `Loop commit template: [iter-{N}] {type}: {msg}` | `[iter-3] feat: add validation` |
+| `Loop commit template: chore({files}): iteration {N}` | `chore(main.rs,lib.rs): iteration 3` |
+| `Loop commit template: {type}({N}): {msg} [{files}]` | `feat(3): add handler [api.rs,mod.rs]` |
+
+**Missing placeholders:** If a placeholder is absent from the template it is simply not rendered — no error is raised.
+
+**Default:** absent — `Loop commit prefix` (or the default `[ralph #N]`) applies.
+
 ### Loop Max Changes
 
 When `Loop max changes: N` is set in CLAUDE.md, hands-free checks the number of files changed at the end of each iteration after all edits are complete but before auto-commit.
@@ -5082,6 +5109,7 @@ Hands-free reads CLAUDE.md at the start of each session. Use a `# hands-free ove
 | `Loop abort on regression: on/off` | `Loop abort on regression: on` | When `on`, fires a HARD STOP at the start of an iteration if the failing test count increased from the previous iteration; first iteration skips comparison; baseline resets after `/hands-free resume`; compatible with `Loop max failures`; default: `off` |
 | `Loop test command: <cmd>` | `Loop test command: cargo test --quiet` | Overrides the auto-detected test runner for all loop health checks (build check, promise evaluation, regression tracking, max-failures, auto-stop); exit 0 = pass, non-zero = fail; absent by default (auto-detection used) |
 | `Loop commit prefix: <prefix>` | `Loop commit prefix: [ci]` | Replaces the default `[ralph #N]` tag at the start of loop mode auto-commit messages; use `{N}` in the prefix to include the iteration number (e.g., `iter-{N}:`); applies to loop mode auto-commits only; absent by default |
+| `Loop commit template: <template>` | `Loop commit template: [iter-{N}] {type}: {msg}` | When set, renders the template as the full auto-commit message for loop mode; supports `{N}` (iteration number), `{type}` (inferred commit type), `{msg}` (inferred description), `{files}` (first 3 changed filenames, truncated with `...` if more); overrides `Loop commit prefix` when set; absent by default (Loop commit prefix or default `[ralph #N]` applies) |
 | `Loop max changes: N` | `Loop max changes: 20` | When set, counts files changed per iteration (via `git status --short` line count — includes staged, unstaged, and new untracked files); fires a HARD STOP before auto-commit if the count exceeds N; after `/hands-free resume` the iteration proceeds to commit despite exceeding the limit; absent by default (no file-count check) |
 | `Loop iteration timeout: N` | `Loop iteration timeout: 30` | When set, fires a HARD STOP if a single iteration has been running for more than N minutes; check is opportunistic (at natural pause points, not a background timer); after `/hands-free resume` the current iteration is abandoned and the loop moves to the next iteration; absent by default (no per-iteration time limit) |
 | `Loop skip on no changes: warn` | `Loop skip on no changes: warn` | When set to `warn`, emits a visible notice (`[hands-free] Loop skip: no changes produced in this iteration`) instead of silently skipping auto-commit when an iteration produces no file changes; session log always captures the skip event regardless; suppressed when `Loop quiet mode: on`; absent by default (silent skip) |

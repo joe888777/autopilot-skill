@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.53.0] — 2026-03-19
+
+### Added
+- `Loop commit template: <template>` CLAUDE.md directive: renders a full commit message format for loop mode auto-commits using placeholders `{N}` (iteration number), `{type}` (inferred type), `{msg}` (inferred description), `{files}` (first 3 changed filenames, truncated with `...` if more)
+- When `Loop commit template` is set, `Loop commit prefix` is ignored
+- Missing placeholders are silently omitted (no error)
+- New row added to Available Persistent Settings table
+
 ## [2.52.0] — 2026-03-19
 
 ### Added
