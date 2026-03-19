@@ -1,6 +1,6 @@
 ---
 name: hands-free
-version: 2.15.0
+version: 2.16.0
 description: Use when the user invokes /hands-free to enable auto-accept mode for skill recommendations. Hands-off workflow that auto-proceeds with recommended options. Supports full/partial/crazy-workspace/off modes, review checkpoints, auto-commit, pause/resume, learning with preference persistence, and ralph-loop integration. Security hard stops for pipe-to-shell, language-level RCE (deno run URL, perl), privilege escalation, global installs, secrets detection, prompt injection prevention, pipe/process-substitution/shell-variable classification, shell script content scanning, and new security patterns (eval $REMOTE, LD_PRELOAD, socat EXEC:bash, data exfiltration). Shell classification meta-rules: --dry-run/--check escalates ask→auto; --force escalates auto→ask; --insecure/--global/--system escalates to ask; --version/--help always auto. Comprehensive 500+ command patterns covering uv/poetry/pipenv/conda, Rust (nextest/cross/miri), TypeScript (tsup/vite/esbuild/biome), Docker/Podman/nerdctl, Redis, SQL DDL, kubectl, AWS/GCP/Azure CLIs, GitHub/GitLab CLIs, Playwright MCP, monorepo tools (Turborepo/Nx/Lerna/Rush), IaC (Terraform/Pulumi/CDK/Ansible), SaaS CLIs (Stripe/Supabase/Firebase/Vercel/Netlify/Fly.io/Railway), DB migrations (Flyway/Liquibase/Alembic/EF Core), Rails/Django/Phoenix/dotnet framework CLIs, Ruby testing (RSpec/RuboCop), Python testing (tox/nox/pytest), security scanners (trivy/grype/bandit/gosec/semgrep/pip-audit/safety/dependency-check), ML tools (DVC/MLflow/wandb), C/C++/LLVM/Erlang/Zig/Haskell/Scala/Clojure/Dart/Swift/Kotlin, gRPC (grpcurl/buf/rover), API codegen (openapi-generator/swagger-codegen), modern crypto (age/sops), network capture (tcpdump/tshark), k8s quality (kube-score/kubeval/kubesec/kyverno/pluto), service mesh (istioctl/linkerd), coverage (lcov/nyc/c8), observability (vector/otelcol/promtool), terminal multiplexers (tmux/screen/zellij), command runners (just/task), and 400+ more. Security automation toolkit: auto-runs cargo-audit/bandit/npm-audit/pip-audit/semgrep before every auto-commit; blocks on critical vulnerabilities; posture grade (A–F) in /hands-free status and loop commit messages; CLAUDE.md per-project overrides (block-on/skip-scanners/allow-patterns). Commands: /hands-free check (preview classification), /hands-free security (vulnerability summary; --scan forces immediate rescan), /hands-free recommend prune (prune stale prefs), /hands-free log --full (complete event log), /hands-free recommend promote (promote hard stop to auto).
 ---
 
@@ -2935,6 +2935,7 @@ Hands-Free Status
   Paused:               no
   Loop-aware:           yes (iteration 3/15)
   Loop health:          87/100 (T:100 S:80 V:100 C:80)
+  Loop velocity:        [3,2,4,0,1] ▄▃▆▁▂
   Security:             A (0 critical, 2 high) — last scan: 8 min ago
 
   Session decisions:    14 auto-accepted, 1 paused
@@ -2975,6 +2976,8 @@ Hands-Free Status
 The `Security:` line is shown in all modes (including off) when `.claude/security-posture.json` exists — the grade is stored on disk independently of hands-free mode. If no scan has run, `Security: unknown (run /hands-free security)`.
 
 The `Loop health:` line is shown only in loop-aware mode. Shows `Loop health: N/A` when not in a loop or when no prior checkpoint `health_score` is available.
+
+The `Loop velocity:` line is shown only in loop-aware mode when `metrics.velocity_trend` is present and non-empty in the checkpoint. Omit the line entirely if velocity data is unavailable.
 
 In `off` mode, learning continues tracking choices but no auto-accept or auto-commit happens. Preferences accumulate for when the mode is re-enabled.
 
@@ -3970,9 +3973,12 @@ Check for `.claude/.ralph-loop.local.md` at the start of each iteration. If pres
   tests       : 12 passed / 0 failed (2026-03-19T13:42:00Z)
   security    : A
   health      : 87/100 (T:100 S:100 V:100 C:100) ↑
+  velocity    : [3,2,4,0,1] ▄▃▆▁▂
 ```
 
-Security grade is included only if `.claude/security-posture.json` exists; omit if no scan has run. Health score is included if `health_score` is present in the checkpoint; omit if null or missing. The `pending` line lists incomplete stories from `active_plan_file`; show `(none)` when all are done or no plan exists. The `branch` line is included if the checkpoint has a `branch` field; if the current branch differs from the checkpoint branch, add `⚠ branch changed` annotation: `branch: ralph/loop-20260319-1 → main ⚠ branch changed`.
+Security grade is included only if `.claude/security-posture.json` exists; omit if no scan has run. Health score is included if `health_score` is present in the checkpoint; omit if null or missing. Velocity sparkline is included if `metrics.velocity_trend` is present and non-empty; omit if missing. The `pending` line lists incomplete stories from `active_plan_file`; show `(none)` when all are done or no plan exists. The `branch` line is included if the checkpoint has a `branch` field; if the current branch differs from the checkpoint branch, add `⚠ branch changed` annotation: `branch: ralph/loop-20260319-1 → main ⚠ branch changed`.
+
+**Velocity sparkline rendering:** Map each value in `velocity_trend` to one of 8 Unicode block characters (▁▂▃▄▅▆▇█) as follows: value `0` always maps to `▁`; the max value in the array maps to `█`; all other values are scaled linearly across the 8 levels. If all values are equal and non-zero → all render as `█`. If `velocity_trend` is missing or empty → omit the velocity line entirely.
 
 **No re-brainstorming with a fresh checkpoint.** When a valid checkpoint is loaded and `pending_stories` is non-empty, skip brainstorming and writing-plans phases — the design is already decided. Route directly to executing-plans for the next pending story. When `pending_stories` is empty and all verification passes, route to finishing-a-development-branch.
 

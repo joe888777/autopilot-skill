@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.16.0] — 2026-03-19
+
+### Added
+
+**Velocity Sparkline in Iteration Announcement**
+- `velocity_trend` rendered as a Unicode block sparkline (▁▂▃▄▅▆▇█) appended to the `velocity` line in the iteration announcement: `velocity: [3,2,4,0,1] ▄▃▆▁▂`
+- Sparkline mapping: 8 Unicode block levels; value 0 always → ▁; max value → █; all values equal and non-zero → all ██; intermediate values scaled linearly; empty/missing array → line omitted
+- `Loop velocity:` line added to `/hands-free status` loop section with sparkline: `Loop velocity: [3,2,4,0,1] ▄▃▆▁▂`; omitted when velocity data unavailable
+
 ## [2.15.0] — 2026-03-19
 
 ### Added
